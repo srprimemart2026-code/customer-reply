@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.R. PRIME MART - Price Quotation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>S.R. PRIME MART</h1>
+            <p>Price Quotation</p>
+        </header>
+
+        <!-- Action Copy Buttons -->
+        <div class="action-buttons">
+            <button type="button" class="btn-primary" onclick="copyText('quotation')">
+                Copy Price Quotation
+            </button>
+            <button type="button" class="btn-primary" onclick="copyText('orderForm')">
+                Copy Order Form
+            </button>
+            <button type="button" class="btn-primary" onclick="copyText('fbMessage')">
+                Copy Facebook Page Message
+            </button>
+        </div>
+
+        <!-- Product & Pricing Card -->
+        <section class="card">
+            <div class="table-header">
+                <div class="col-name">Product Name</div>
+                <div class="col-price">Price (Tk)</div>
+                <div class="col-qty">Quantity</div>
+                <div class="col-total">Total</div>
+                <div class="col-action"></div>
+            </div>
+
+            <!-- Dynamic Product Rows -->
+            <div id="productList" class="product-list"></div>
+
+            <!-- Add Product Button -->
+            <button type="button" class="btn-add" onclick="addProduct()">
+                + Add product
+            </button>
+
+            <!-- Summary Box -->
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span class="label-muted">Delivery Charge</span>
+                    <div class="delivery-charge-wrap">
+                        <span>Tk</span>
+                        <input type="number" id="deliveryChargeInput" value="130" min="0" onchange="calculateAll()" oninput="calculateAll()">
+                    </div>
+                </div>
+
+                <div class="summary-row total-row">
+                    <span>Total Payment</span>
+                    <span id="totalPaymentDisplay">Tk 310</span>
+                </div>
+
+                <div class="summary-row payment-row">
+                    <span class="label-muted">Payment</span>
+                    <span class="payment-method">Full Cash on Delivery</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Delivery Time Card -->
+        <section class="card">
+            <h2 class="card-title">Delivery time</h2>
+            <div class="select-wrapper">
+                <select id="deliveryLocation" onchange="handleLocationChange()">
+                    <option value="outside" selected>Outside Dhaka</option>
+                    <option value="inside">Inside Dhaka</option>
+                </select>
+            </div>
+
+            <div class="delivery-info">
+                <span id="locationText" class="label-muted">Outside Dhaka</span>
+                <span id="deliveryDateText" class="delivery-date">2-3 days</span>
+            </div>
+        </section>
+    </div>
+
+    <!-- Copy Notification Toast -->
+    <div id="toast" class="toast">Copied to clipboard!</div>
+
+    <script src="script.js"></script>
+</body>
+</html>

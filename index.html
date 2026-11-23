@@ -1,12 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>S.R. PRIME MART – Price Quotation</title>
+<title>S.R. PRIME MART</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<nav class="tabs" id="tabs">
+<button type="button" data-tab="quote" class="on">Price Quotation</button>
+<button type="button" data-tab="reply">Reply Helper</button>
+</nav>
+
+<!-- ============ TAB 1: PRICE QUOTATION ============ -->
+<div id="pane-quote">
 <main>
 <h1>S.R. PRIME MART</h1>
 <p class="sub">Price Quotation</p>
@@ -35,6 +43,75 @@
 </dl>
 </section>
 </main>
+</div>
+
+<!-- ============ TAB 2: REPLY HELPER ============ -->
+<div id="pane-reply" hidden>
+<div class="rwrap">
+  <header>
+    <h1>Reply Helper</h1>
+    <p>Paste the customer's message, pick the product, copy the reply, send it on Marketplace.</p>
+  </header>
+
+  <div class="grid">
+    <div class="side">
+      <div class="box">
+        <div class="f">
+          <label for="msg">Customer message</label>
+          <textarea id="msg" placeholder="e.g. vai dam koto? delivery kobe pabo?"></textarea>
+          <div class="chips" id="chips"></div>
+        </div>
+        <div class="f">
+          <label for="prod">Product</label>
+          <select id="prod"></select>
+        </div>
+        <button class="ghost" id="clear" type="button">Clear message</button>
+      </div>
+
+      <details class="box" id="settings">
+        <summary>Settings</summary>
+        <div class="f">
+          <label for="shop">Shop name</label>
+          <input id="shop" value="S.R. Prime Mart">
+        </div>
+        <div class="f">
+          <label for="charge">Delivery charge text</label>
+          <input id="charge" placeholder="e.g. Dhaka 70 tk, outside Dhaka 130 tk">
+        </div>
+        <div class="f">
+          <label for="review">Review link</label>
+          <input id="review" placeholder="Facebook review post link">
+        </div>
+        <div class="f">
+          <label for="pay">Advance payment details</label>
+          <input id="pay" placeholder="e.g. bKash (Personal): 01XXXXXXXXX">
+        </div>
+        <div class="f">
+          <label for="policy">Return / problem policy (one line)</label>
+          <input id="policy" placeholder="e.g. পণ্যে সমস্যা থাকলে ডেলিভারির সময় জানাবেন">
+        </div>
+        <div class="f">
+          <label for="plist">Products (Name | Price, one per line)</label>
+          <textarea id="plist" rows="7" placeholder="Steel Bracelet | 450&#10;Silver Ring | 300&#10;Wrist Watch | 1200"></textarea>
+          <div style="margin-top:8px"><button class="ghost" id="imp" type="button">Import from Excel (CSV file)</button>
+          <input type="file" id="file" accept=".csv,.tsv,.txt" hidden></div>
+          <div class="hint">Excel: select your Name and Price columns, copy, then paste here. Or save the sheet as "CSV UTF-8" and import it. Saved automatically in this browser.</div>
+        </div>
+      </details>
+    </div>
+
+    <div>
+      <div class="box" style="border-color:#fff">
+        <div class="top"><b>Best reply</b><button type="button" id="bestcopy">Copy best reply</button></div>
+        <textarea id="t_best" aria-label="Best reply" placeholder="Paste a customer message and the ready reply appears here."></textarea>
+      </div>
+      <h2>All replies</h2>
+      <div id="list"></div>
+    </div>
+  </div>
+</div>
+</div>
+
 <script src="script.js"></script>
 </body>
 </html>

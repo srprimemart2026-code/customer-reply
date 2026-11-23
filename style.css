@@ -247,7 +247,6 @@ h2 { font-size: 1.05rem; margin: 0 0 10px; font-weight: 600; }
 }
 
 /* ============ WIDESCREEN GRIDS (1920x1080) ============ */
-/* 1. Quote Grid */
 .quote-grid {
   display: grid;
   grid-template-columns: 1.35fr 1fr;
@@ -277,7 +276,6 @@ h2 { font-size: 1.05rem; margin: 0 0 10px; font-weight: 600; }
   background: var(--field);
 }
 
-/* 2. Reply Helper 3-Column Grid */
 .reply-grid {
   display: grid;
   grid-template-columns: 360px 1fr 360px;
@@ -302,7 +300,6 @@ h2 { font-size: 1.05rem; margin: 0 0 10px; font-weight: 600; }
 .best-box { border-color: var(--acc); }
 .best-box textarea { flex: 1; min-height: 180px; }
 
-/* 3. Order Desk Split Grid */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -367,7 +364,7 @@ input:focus, textarea:focus, select:focus, button:focus-visible {
 
 .w-full { width: 100%; }
 .btn.sm, button.sm { padding: 6px 10px; font-size: 0.78rem; }
-.btn.sec { background: var(--soft); color: var(--ink); border-color: var(--line); }
+.btn.sec, button.sec { background: var(--soft); color: var(--ink); border-color: var(--line); }
 .btn.outline, button.outline { background: transparent; color: var(--acc); }
 .btn.ghost, button.ghost {
   background: transparent;
@@ -453,7 +450,7 @@ td.t { white-space: nowrap; font-weight: 600; padding-left: 8px; }
 .info-list dt { color: var(--mute); }
 .info-list dd { margin: 0; font-weight: 600; }
 
-/* Reply Cards */
+/* Reply Cards & Inline Template Editor */
 .f { margin-bottom: 11px; }
 .f:last-child { margin-bottom: 0; }
 label { display: block; font-size: 0.82rem; font-weight: 500; color: var(--mute); margin-bottom: 4px; }
@@ -478,7 +475,9 @@ label { display: block; font-size: 0.82rem; font-weight: 500; color: var(--mute)
   margin-bottom: 10px;
 }
 .card.hit { border-color: var(--acc); }
+.card.editing { border-color: var(--acc); box-shadow: 0 0 0 2px var(--soft); }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.card-btns { display: flex; gap: 6px; align-items: center; }
 .tag {
   font-size: 0.72rem;
   font-weight: 600;
@@ -488,7 +487,34 @@ label { display: block; font-size: 0.82rem; font-weight: 500; color: var(--mute)
   padding: 2px 7px;
   margin-left: 8px;
 }
+.tag.custom-tag {
+  background: var(--soft);
+  color: var(--acc);
+  border: 1px solid var(--acc);
+}
 .card textarea { min-height: 68px; font-size: 0.88rem; }
+
+.tpl-editor {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.tpl-editor textarea {
+  min-height: 76px;
+  font-size: 0.85rem;
+  background: var(--field);
+}
+.tpl-hint {
+  font-size: 0.74rem;
+  color: var(--mute);
+  margin-top: 5px;
+}
+.tpl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
 
 /* Order Desk Extras */
 .smart-box {

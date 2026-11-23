@@ -327,6 +327,7 @@ function srGetSyncedProducts(){
 
 /* ===== TAB 2: REPLY HELPER + BACKUP/RESTORE ===== */
 (function(){
+  var DEFAULT_REVIEW = "https://www.facebook.com/share/p/1Cem497akM/"; //[cite: 1]
   var T = [
     { id: "greet", t: "Greeting", k: /salam|সালাম|hello|হ্যালো|হাই|\bhi\b/i, x: "আসসালামু আলাইকুম ভাইয়া! {shop}-এ স্বাগতম 😊 কোন প্রোডাক্টটা লাগবে বলুন।" },
     { id: "price", t: "Price", k: /dam|দাম|price|koto|কত|দর|rate/i, x: "ভাইয়া, {product} এর দাম {price} টাকা। অর্ডার করতে চাইলে জানাবেন 😊" },
@@ -344,14 +345,16 @@ function srGetSyncedProducts(){
   ];
 
   var $ = function(id){ return document.getElementById(id); };
-  var S = { shop: "S.R. Prime Mart", charge: "", plist: "" };
+  var S = { shop: "S.R. Prime Mart", charge: "", plist: "", review: DEFAULT_REVIEW };
 
   try{
     var s = JSON.parse(localStorage.getItem("rh_settings") || "null");
     if(s) S = Object.assign(S, s);
   }catch(e){}
 
-  if(S.review === undefined) S.review = "https://www.facebook.com/share/p/1UYhXZzukX/";
+  if(!S.review || S.review === "https://www.facebook.com/share/p/1UYhXZzukX/"){
+    S.review = DEFAULT_REVIEW;
+  }
   if(S.policy === undefined) S.policy = "পণ্যে কোনো সমস্যা থাকলে ডেলিভারির সময়ই আমাদের জানাবেন, আমরা সমাধানের চেষ্টা করব 🙏";
 
   function save(){
@@ -383,7 +386,7 @@ function srGetSyncedProducts(){
       .replace(/\{price\}/g, p && p.p ? p.p : "[price]")
       .replace(/\{shop\}/g, S.shop || "[shop]")
       .replace(/\{charge\}/g, S.charge || "[charge]")
-      .replace(/\{review\}/g, S.review || "[review link]")
+      .replace(/\{review\}/g, S.review || DEFAULT_REVIEW)
       .replace(/\{pay\}/g, S.pay || "[bKash/Nagad number]")
       .replace(/\{policy\}/g, S.policy || "[return policy]");
   }
@@ -509,7 +512,6 @@ function srGetSyncedProducts(){
     this.value = "";
   });
 
-  /* JSON Backup & Restore (Works from both Sidebar & Settings) */
   function doBackup(){
     var payload = {
       exportedAt: new Date().toISOString(),
@@ -561,6 +563,7 @@ function srGetSyncedProducts(){
   $("pay").value = S.pay || "";
   $("policy").value = S.policy || "";
   $("plist").value = S.plist;
+  save();
 
   fillSelect();
   render();
@@ -654,7 +657,6 @@ function srGetSyncedProducts(){
     $("st-delivered").textContent = String(delivered);
     $("st-sales").textContent = salesFormatted;
 
-    /* Sync Sidebar Live HUD */
     if($("hud-orders")) $("hud-orders").textContent = String(orders.length);
     if($("hud-pending")) $("hud-pending").textContent = String(pending);
     if($("hud-sales")) $("hud-sales").textContent = salesFormatted;

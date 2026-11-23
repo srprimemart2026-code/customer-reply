@@ -36,7 +36,6 @@ function srSwitchTab(tabName){
     var pane = document.getElementById("pane-" + b.getAttribute("data-tab"));
     if(pane) pane.hidden = !on;
   });
-  window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 (function(){
@@ -168,6 +167,9 @@ function srGetSyncedProducts(){
       ? "Advance Paid (" + tk(t.adv) + ") + COD"
       : "Full Cash on Delivery";
 
+    var preview = $("quote-live-preview");
+    if(preview) preview.value = qtext();
+
     saveItems();
   }
 
@@ -271,7 +273,7 @@ function srGetSyncedProducts(){
   };
 
   $("fbb").onclick = function(){
-    cpTxt(["🛍️ আমাদের ফেসবুক পেজ: (Follow)", "https://www.facebook.com/SRPRIMEMART", "S.R. Prime Mart-এর পাশে থাকার জন্য ধন্যবাদ।"].join("\n"), this, "Copy Facebook Page Message");
+    cpTxt(["🛍️ আমাদের ফেসবুক পেজ: (Follow)", "https://www.facebook.com/SRPRIMEMART", "S.R. Prime Mart-এর পাশে থাকার জন্য ধন্যবাদ।"].join("\n"), this, "Copy FB Page Link");
   };
 
   $("clear-quote").onclick = function(){
@@ -507,8 +509,8 @@ function srGetSyncedProducts(){
     this.value = "";
   });
 
-  /* JSON Backup & Restore */
-  $("backup-json").addEventListener("click", function(){
+  /* JSON Backup & Restore (Works from both Sidebar & Settings) */
+  function doBackup(){
     var payload = {
       exportedAt: new Date().toISOString(),
       rh_settings: JSON.parse(localStorage.getItem("rh_settings") || "null"),
@@ -525,9 +527,14 @@ function srGetSyncedProducts(){
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     srToast("Backup downloaded");
-  });
+  }
+
+  $("backup-json").addEventListener("click", doBackup);
+  $("side-backup").addEventListener("click", doBackup);
 
   $("restore-json").addEventListener("click", function(){ $("restore-file").click(); });
+  $("side-restore").addEventListener("click", function(){ $("restore-file").click(); });
+
   $("restore-file").addEventListener("change", function(){
     var f = this.files[0];
     if(!f) return;
@@ -554,13 +561,12 @@ function srGetSyncedProducts(){
   $("pay").value = S.pay || "";
   $("policy").value = S.policy || "";
   $("plist").value = S.plist;
-  if(!S.plist) $("settings").open = true;
 
   fillSelect();
   render();
 })();
 
-/* ===== TAB 3: ORDER DESK (SMART PARSER, STATS, SLIP, COURIER CSV) ===== */
+/* ===== TAB 3: ORDER DESK ===== */
 (function(){
   var $ = function(id){ return document.getElementById(id); };
   var STATUSES = ["Pending", "Confirmed", "Shipped", "Delivered", "Returned"];
@@ -595,7 +601,6 @@ function srGetSyncedProducts(){
     $("o-name").focus();
   };
 
-  /* Smart Order Parser */
   $("btn-parse-order").addEventListener("click", function(){
     var raw = $("smart-paste").value.trim();
     if(!raw){
@@ -643,10 +648,16 @@ function srGetSyncedProducts(){
       if(o.status === "Pending") pending++;
       if(o.status === "Delivered") delivered++;
     });
+    var salesFormatted = "Tk " + totalSales.toLocaleString("en-US");
     $("st-count").textContent = String(orders.length);
     $("st-pending").textContent = String(pending);
     $("st-delivered").textContent = String(delivered);
-    $("st-sales").textContent = "Tk " + totalSales.toLocaleString("en-US");
+    $("st-sales").textContent = salesFormatted;
+
+    /* Sync Sidebar Live HUD */
+    if($("hud-orders")) $("hud-orders").textContent = String(orders.length);
+    if($("hud-pending")) $("hud-pending").textContent = String(pending);
+    if($("hud-sales")) $("hud-sales").textContent = salesFormatted;
   }
 
   function getFilteredOrders(){
@@ -667,7 +678,7 @@ function srGetSyncedProducts(){
     $("order-count").textContent = String(list.length);
 
     if(!list.length){
-      $("order-rows").innerHTML = '<tr><td colspan="7" style="color:var(--mute);padding:12px 6px">কোনো অর্ডার পাওয়া যায়নি।</td></tr>';
+      $("order-rows").innerHTML = '<tr><td colspan="7" style="color:var(--mute);padding:14px 6px">কোনো অর্ডার পাওয়া যায়নি।</td></tr>';
       return;
     }
 

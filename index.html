@@ -4,13 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>S.R. PRIME MART — Business Workspace</title>
+<link rel="icon" type="image/jpeg" href="SR-Prime-Mart.jpg">
+<link rel="shortcut icon" type="image/jpeg" href="SR-Prime-Mart.jpg">
+<link rel="apple-touch-icon" href="SR-Prime-Mart.jpg">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <span class="brand-badge" aria-hidden="true">SR</span>
+    <img src="SR-Prime-Mart.jpg" alt="S.R. Prime Mart Logo" class="brand-logo">
     <div>
       <strong>S.R. PRIME MART</strong>
       <span>Business Hub</span>
@@ -25,22 +28,22 @@
 
 <!-- ============ TAB 1: PRICE QUOTATION ============ -->
 <div id="pane-quote" class="pane">
-  <main class="container quote-pc-grid">
-    <div class="page-head pc-span-all">
+  <main class="container">
+    <div class="page-head">
       <div>
         <h1>Price Quotation</h1>
         <p class="sub">দ্রুত প্রোডাক্ট হিসাব, ডেলিভারি চার্জ ও কপি-রেডি মেসেজ</p>
       </div>
     </div>
 
-    <div class="sticky-actions pc-span-all">
+    <div class="sticky-actions">
       <button type="button" id="cpy" class="btn pri">Copy Price Quotation</button>
       <button type="button" id="ofb" class="btn sec">Copy Order Form</button>
       <button type="button" id="fbb" class="btn sec">Copy Facebook Page Message</button>
       <button type="button" id="clear-quote" class="btn ghost">Reset</button>
     </div>
 
-    <section class="panel quote-left">
+    <section class="panel">
       <div class="section-top">
         <h2>Products</h2>
         <span class="hint-inline">Reply Helper-এর প্রোডাক্ট লিস্ট থেকে নাম লিখলে দাম অটো আসবে</span>
@@ -62,10 +65,6 @@
       </div>
 
       <button type="button" id="add" class="btn outline">+ Add product</button>
-    </section>
-
-    <section class="panel quote-right">
-      <h2>Summary & Delivery</h2>
 
       <div class="sum">
         <div class="sum-row"><span>Subtotal</span><span id="sub">Tk 0</span></div>
@@ -73,16 +72,15 @@
         <div class="sum-row big"><span>Total Payment</span><span id="tot">Tk 0</span></div>
         <div class="sum-row meta"><span>Payment Method</span><b>Full Cash on Delivery</b></div>
       </div>
+    </section>
 
-      <div class="f" style="margin-top:14px">
-        <label for="zs">Delivery Area</label>
-        <select id="zs" aria-label="Delivery area">
-          <option value="0">Inside Dhaka</option>
-          <option value="1">Dhaka sub areas</option>
-          <option value="2">Outside Dhaka</option>
-        </select>
-      </div>
-
+    <section class="panel">
+      <h2>Delivery Area & Estimated Time</h2>
+      <select id="zs" aria-label="Delivery area">
+        <option value="0">Inside Dhaka</option>
+        <option value="1">Dhaka sub areas</option>
+        <option value="2">Outside Dhaka</option>
+      </select>
       <dl class="info-list">
         <div><dt id="dn">Inside Dhaka</dt><dd id="d0">1-2 days</dd></div>
         <div><dt>Contact</dt><dd>01600-445389 (WhatsApp)</dd></div>

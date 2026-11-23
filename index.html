@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>S.R. PRIME MART — Business Workspace</title>
+<title>S.R. PRIME MART — Business Workspace Pro</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
     <span class="brand-dot" aria-hidden="true"></span>
     <div>
       <strong>S.R. PRIME MART</strong>
-      <span>Business Hub</span>
+      <span>Business Hub Pro</span>
     </div>
   </div>
   <nav class="tabs" id="tabs" aria-label="Workspace sections">
@@ -21,6 +21,9 @@
     <button type="button" data-tab="reply">Reply Helper</button>
     <button type="button" data-tab="orders">Order Desk</button>
   </nav>
+  <div class="top-tools">
+    <button type="button" id="theme-toggle" class="btn ghost sm" title="Toggle Dark/Light Theme">🌓 Theme</button>
+  </div>
 </header>
 
 <!-- ============ TAB 1: PRICE QUOTATION ============ -->
@@ -29,12 +32,13 @@
     <div class="page-head">
       <div>
         <h1>Price Quotation</h1>
-        <p class="sub">দ্রুত প্রোডাক্ট হিসাব, ডেলিভারি চার্জ ও কপি-রেডি মেসেজ</p>
+        <p class="sub">দ্রুত প্রোডাক্ট হিসাব, ডিসকাউন্ট/অ্যাডভান্স, ডেলিভারি চার্জ ও কপি-রেডি মেসেজ</p>
       </div>
     </div>
 
     <div class="sticky-actions">
       <button type="button" id="cpy" class="btn pri">Copy Price Quotation</button>
+      <button type="button" id="send-to-order" class="btn sec">→ Send to Order Desk</button>
       <button type="button" id="ofb" class="btn sec">Copy Order Form</button>
       <button type="button" id="fbb" class="btn sec">Copy Facebook Page Message</button>
       <button type="button" id="clear-quote" class="btn ghost">Reset</button>
@@ -63,11 +67,25 @@
 
       <button type="button" id="add" class="btn outline">+ Add product</button>
 
+      <div class="calc-extras">
+        <div class="f">
+          <label for="q-disc">Discount (Tk)</label>
+          <input id="q-disc" type="number" min="0" step="any" placeholder="0">
+        </div>
+        <div class="f">
+          <label for="q-adv">Advance Paid (Tk)</label>
+          <input id="q-adv" type="number" min="0" step="any" placeholder="0">
+        </div>
+      </div>
+
       <div class="sum">
         <div class="sum-row"><span>Subtotal</span><span id="sub">Tk 0</span></div>
         <div class="sum-row"><span>Delivery Charge</span><span id="dc">Tk 70</span></div>
-        <div class="sum-row big"><span>Total Payment</span><span id="tot">Tk 0</span></div>
-        <div class="sum-row meta"><span>Payment Method</span><b>Full Cash on Delivery</b></div>
+        <div class="sum-row meta" id="disc-row" hidden><span>Discount</span><span id="disc-val">- Tk 0</span></div>
+        <div class="sum-row big"><span>Grand Total</span><span id="tot">Tk 0</span></div>
+        <div class="sum-row meta" id="adv-row" hidden><span>Advance Paid</span><span id="adv-val">- Tk 0</span></div>
+        <div class="sum-row due" id="due-row" hidden><span>Due on Delivery (COD)</span><span id="due-val">Tk 0</span></div>
+        <div class="sum-row meta"><span>Payment Method</span><b id="pay-method-label">Full Cash on Delivery</b></div>
       </div>
     </section>
 
@@ -114,7 +132,7 @@
         </div>
 
         <details class="box" id="settings">
-          <summary>Store Settings & Product List</summary>
+          <summary>Store Settings, Product List & Backup</summary>
           <div class="f">
             <label for="shop">Shop name</label>
             <input id="shop" value="S.R. Prime Mart">
@@ -142,7 +160,17 @@
               <button class="ghost" id="imp" type="button">Import CSV / Excel</button>
               <input type="file" id="file" accept=".csv,.tsv,.txt" hidden>
             </div>
-            <div class="hint">Excel থেকে Name ও Price কপি করে পেস্ট করতে পারেন অথবা CSV UTF-8 ফাইল ইমপোর্ট করতে পারেন। সব অটোমেটিক ব্রাউজারে সেভ হয়।</div>
+            <div class="hint">Excel থেকে Name ও Price কপি করে পেস্ট করতে পারেন অথবা CSV UTF-8 ফাইল ইমপোর্ট করতে পারেন। সব অটোমেটিক ব্রাউজারে সেভ হয়।</div>
+          </div>
+
+          <hr class="sep">
+          <div class="f">
+            <label>Workspace Backup & Restore (JSON)</label>
+            <div class="row-actions">
+              <button type="button" class="btn sec sm" id="backup-json">Download Backup</button>
+              <button type="button" class="btn ghost sm" id="restore-json">Restore Backup</button>
+              <input type="file" id="restore-file" accept=".json,application/json" hidden>
+            </div>
           </div>
         </details>
       </aside>
@@ -165,17 +193,38 @@
 
 <!-- ============ TAB 3: ORDER DESK ============ -->
 <div id="pane-orders" class="pane" hidden>
-  <main class="container">
+  <main class="container wide">
     <div class="page-head">
       <div>
         <h1>Order Desk</h1>
-        <p class="sub">কাস্টমারের অর্ডার তথ্য সেভ করুন ও CSV হিসেবে এক্সপোর্ট করুন</p>
+        <p class="sub">কাস্টমারের অর্ডার সেভ, স্ট্যাটাস ট্র্যাক, পার্সেল স্লিপ প্রিন্ট ও কুরিয়ার CSV এক্সপোর্ট</p>
       </div>
-      <button type="button" id="export-csv" class="btn pri">Export CSV</button>
+      <div class="row-actions" style="margin-top:0">
+        <button type="button" id="export-csv" class="btn pri">Export CSV</button>
+        <button type="button" id="export-courier" class="btn sec">Courier CSV (Steadfast/Pathao)</button>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="order-stats">
+      <div class="stat-card"><span>Total Orders</span><strong id="st-count">0</strong></div>
+      <div class="stat-card"><span>Pending</span><strong id="st-pending">0</strong></div>
+      <div class="stat-card"><span>Delivered</span><strong id="st-delivered">0</strong></div>
+      <div class="stat-card"><span>Total Sales</span><strong id="st-sales">Tk 0</strong></div>
     </div>
 
     <section class="panel">
-      <h2>New Order Entry</h2>
+      <div class="section-top">
+        <h2>New Order Entry</h2>
+      </div>
+
+      <div class="smart-box">
+        <label for="smart-paste">⚡ Smart Paste (কাস্টমারের মেসেজ পেস্ট করলে নাম, ফোন ও ঠিকানা অটো বসবে)</label>
+        <div class="smart-row">
+          <textarea id="smart-paste" rows="2" placeholder="যেমন:&#10;নাম: রাফি আহমেদ&#10;ফোন: 01712345678&#10;ঠিকানা: বাড়ি ১২, রোড ৫, উত্তরা, ঢাকা"></textarea>
+          <button type="button" id="btn-parse-order" class="btn sec">Auto-Fill</button>
+        </div>
+      </div>
+
       <form id="order-form" class="form-grid">
         <div class="f">
           <label for="o-name">Customer Name</label>
@@ -194,8 +243,22 @@
           <input id="o-prod" required placeholder="e.g. Steel Bracelet × 1">
         </div>
         <div class="f">
-          <label for="o-total">Total Amount (Tk)</label>
+          <label for="o-total">COD / Total Amount (Tk)</label>
           <input id="o-total" type="number" min="0" placeholder="0">
+        </div>
+        <div class="f">
+          <label for="o-status">Order Status</label>
+          <select id="o-status">
+            <option value="Pending">Pending</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Shipped">Shipped</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Returned">Returned</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="o-note">Delivery Note (Optional)</label>
+          <input id="o-note" placeholder="e.g. কল দিয়ে ডেলিভারি করবেন">
         </div>
         <div class="f full row-actions">
           <button type="submit" class="btn pri">Save Order</button>
@@ -207,6 +270,17 @@
     <section class="panel">
       <div class="section-top">
         <h2>Saved Orders (<span id="order-count">0</span>)</h2>
+        <div class="filter-bar">
+          <input type="search" id="order-search" placeholder="নাম, ফোন বা ঠিকানা খুঁজুন...">
+          <select id="order-filter-status" aria-label="Filter by status">
+            <option value="ALL">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Shipped">Shipped</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Returned">Returned</option>
+          </select>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -216,8 +290,9 @@
               <th>Phone</th>
               <th>Address</th>
               <th>Product</th>
-              <th>Total</th>
-              <th></th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="order-rows"></tbody>
@@ -226,6 +301,12 @@
     </section>
   </main>
 </div>
+
+<!-- Printable Parcel Slip / Invoice Area -->
+<div id="print-slip" class="print-only" aria-hidden="true"></div>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="script.js"></script>
 </body>

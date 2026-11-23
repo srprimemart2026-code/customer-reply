@@ -325,9 +325,9 @@ function srGetSyncedProducts(){
   window.addEventListener("sr:products-updated", rows);
 })();
 
-/* ===== TAB 2: REPLY HELPER + BACKUP/RESTORE ===== */
+/* ===== TAB 2: REPLY HELPER + INLINE TEMPLATE CUSTOMIZER + BACKUP/RESTORE ===== */
 (function(){
-  var DEFAULT_REVIEW = "https://www.facebook.com/share/p/1Cem497akM/"; //[cite: 1]
+  var DEFAULT_REVIEW = "https://www.facebook.com/share/p/1Cem497akM/";[cite: 1]
   var T = [
     { id: "greet", t: "Greeting", k: /salam|সালাম|hello|হ্যালো|হাই|\bhi\b/i, x: "আসসালামু আলাইকুম ভাইয়া! {shop}-এ স্বাগতম 😊 কোন প্রোডাক্টটা লাগবে বলুন।" },
     { id: "price", t: "Price", k: /dam|দাম|price|koto|কত|দর|rate/i, x: "ভাইয়া, {product} এর দাম {price} টাকা। অর্ডার করতে চাইলে জানাবেন 😊" },
@@ -340,22 +340,38 @@ function srGetSyncedProducts(){
     { id: "confirm", t: "Order confirmed", k: null, x: "ধন্যবাদ ভাইয়া! আপনার {product} অর্ডারটি কনফার্ম হয়েছে ✅ পণ্যের দাম {price} টাকা, পণ্য হাতে পেয়ে দেবেন (ডেলিভারি চার্জ আগেই পেয়েছি)। শীঘ্রই পেয়ে যাবেন।" },
     { id: "out", t: "Out of stock", k: null, x: "দুঃখিত ভাইয়া, এটা এখন স্টকে নেই 🙏 চাইলে অন্য ডিজাইন দেখাতে পারি।" },
     { id: "follow", t: "Follow-up", k: null, x: "ভাইয়া, অর্ডারটা কি কনফার্ম করবেন? 😊 জানালে এখনই প্রসেস করে দিই।" },
-    { id: "trust", t: "Customer trust", k: /trust|bishwash|বিশ্বাস|vorosa|ভরসা|fake|ফেক|original|অরিজিনাল|review|রিভিউ|scam|প্রতারণা/i, x: "ভাইয়া, দ্বিধার কিছু নেই 😊 আগের কাস্টমারদের রিভিউ ও ছবি এখানে দেখতে পারবেন: {review}\nফেক অর্ডারে অনেক পার্সেল ফেরত আসে, তাই আমরা শুধু ডেলিভারি চার্জ আগে নিই। পণ্যের দাম পণ্য হাতে পেয়ে চেক করে দেবেন 🙏\n{policy}" },
+    { id: "trust", t: "Customer trust", k: /trust|bishwash|বিশ্বাস|vorosa|ভরসা|fake|ফেক|original|অরিজিনাল|review|রিভিউ|scam|প্রতারণা/i, x: "ভাইয়া, দ্বিধার কিছু নেই 😊 আগের কাস্টমারদের রিভিউ ও ছবি এখানে দেখতে পারবেন: {review}\nফেক অর্ডারে অনেক পার্সেল ফেরত আসে, তাই আমরা শুধু ডেলিভারি চার্জ আগে নিই। পণ্যের দাম পণ্য হাতে পেয়ে চেক করে দেবেন 🙏\n{policy}" },[cite: 1]
     { id: "thanks", t: "Thanks", k: null, x: "ধন্যবাদ ভাইয়া! আমাদের সাথে থাকার জন্য 🙏 কোনো প্রয়োজনে জানাবেন।" }
   ];
 
+  var DEFAULT_MAP = {};
+  T.forEach(function(item){ DEFAULT_MAP[item.id] = item.x; });
+
   var $ = function(id){ return document.getElementById(id); };
-  var S = { shop: "S.R. Prime Mart", charge: "", plist: "", review: DEFAULT_REVIEW };
+  var S = { shop: "S.R. Prime Mart", charge: "", plist: "", review: DEFAULT_REVIEW, customTemplates: {} };
+  var editingId = null;
 
   try{
     var s = JSON.parse(localStorage.getItem("rh_settings") || "null");
     if(s) S = Object.assign(S, s);
   }catch(e){}
 
+  if(!S.customTemplates || typeof S.customTemplates !== "object") S.customTemplates = {};
   if(!S.review || S.review === "https://www.facebook.com/share/p/1UYhXZzukX/"){
     S.review = DEFAULT_REVIEW;
   }
   if(S.policy === undefined) S.policy = "পণ্যে কোনো সমস্যা থাকলে ডেলিভারির সময়ই আমাদের জানাবেন, আমরা সমাধানের চেষ্টা করব 🙏";
+
+  function getTemplateText(t){
+    if(S.customTemplates && typeof S.customTemplates[t.id] === "string"){
+      return S.customTemplates[t.id];
+    }
+    return t.x;
+  }
+
+  function isCustomized(id){
+    return !!(S.customTemplates && typeof S.customTemplates[id] === "string" && S.customTemplates[id] !== DEFAULT_MAP[id]);
+  }
 
   function save(){
     try{ localStorage.setItem("rh_settings", JSON.stringify(S)); }catch(e){}
@@ -407,7 +423,8 @@ function srGetSyncedProducts(){
       return hits.indexOf(id) > -1 && !(id === "price" && hits.indexOf("avail") > -1);
     });
     $("t_best").value = ids.map(function(id){
-      return fill(T.filter(function(t){ return t.id === id; })[0].x);
+      var tplObj = T.filter(function(t){ return t.id === id; })[0];
+      return fill(getTemplateText(tplObj));
     }).join("\n\n");
 
     var order = T.slice().sort(function(a, b){
@@ -416,15 +433,39 @@ function srGetSyncedProducts(){
 
     $("list").innerHTML = order.map(function(t){
       var hit = hits.indexOf(t.id) > -1;
-      return '<div class="card' + (hit ? " hit" : "") + '">' +
-        '<div class="top"><span><b>' + esc(t.t) + '</b>' + (hit ? '<span class="tag">Suggested</span>' : "") + '</span>' +
-        '<button type="button" data-c="' + t.id + '">Copy</button></div>' +
-        '<textarea id="t_' + t.id + '" aria-label="' + esc(t.t) + '"></textarea></div>';
+      var custom = isCustomized(t.id);
+      var isEd = editingId === t.id;
+      var rawTpl = getTemplateText(t);
+
+      return '<div class="card' + (hit ? " hit" : "") + (isEd ? " editing" : "") + '">' +
+        '<div class="top">' +
+          '<span><b>' + esc(t.t) + '</b>' +
+            (hit ? '<span class="tag">Suggested</span>' : "") +
+            (custom ? '<span class="tag custom-tag">Edited</span>' : "") +
+          '</span>' +
+          '<div class="card-btns">' +
+            '<button type="button" class="btn sec sm" data-ed="' + t.id + '">' + (isEd ? "Close" : "Edit") + '</button>' +
+            '<button type="button" class="sm" data-c="' + t.id + '">Copy</button>' +
+          '</div>' +
+        '</div>' +
+        '<textarea id="t_' + t.id + '" aria-label="' + esc(t.t) + '"></textarea>' +
+        (isEd
+          ? '<div class="tpl-editor">' +
+              '<label for="ed_' + t.id + '">Customize Template Text</label>' +
+              '<textarea id="ed_' + t.id + '">' + esc(rawTpl) + '</textarea>' +
+              '<div class="tpl-hint">Variables: {product}, {price}, {shop}, {charge}, {review}, {pay}, {policy}</div>' +
+              '<div class="tpl-actions">' +
+                '<button type="button" class="btn sm" data-save-tpl="' + t.id + '">Save Template</button>' +
+                (custom ? '<button type="button" class="btn ghost sm" data-reset-tpl="' + t.id + '">Reset Default</button>' : "") +
+              '</div>' +
+            '</div>'
+          : "") +
+      '</div>';
     }).join("");
 
     order.forEach(function(t){
       var ta = $("t_" + t.id);
-      if(ta) ta.value = fill(t.x);
+      if(ta) ta.value = fill(getTemplateText(t));
     });
   }
 
@@ -450,8 +491,49 @@ function srGetSyncedProducts(){
   }
 
   $("list").addEventListener("click", function(e){
-    var c = e.target.getAttribute("data-c");
-    if(c) copyById(c, e.target);
+    var btn = e.target.closest("button");
+    if(!btn) return;
+
+    var c = btn.getAttribute("data-c");
+    if(c){ copyById(c, btn); return; }
+
+    var ed = btn.getAttribute("data-ed");
+    if(ed){
+      editingId = (editingId === ed) ? null : ed;
+      render();
+      if(editingId){
+        var edArea = $("ed_" + editingId);
+        if(edArea) edArea.focus();
+      }
+      return;
+    }
+
+    var saveId = btn.getAttribute("data-save-tpl");
+    if(saveId){
+      var area = $("ed_" + saveId);
+      if(area){
+        var val = area.value;
+        if(!val.trim()){
+          srToast("Template cannot be empty");
+          return;
+        }
+        S.customTemplates[saveId] = val;
+        save();
+        editingId = null;
+        render();
+        srToast("Template saved");
+      }
+      return;
+    }
+
+    var resetId = btn.getAttribute("data-reset-tpl");
+    if(resetId){
+      delete S.customTemplates[resetId];
+      save();
+      editingId = null;
+      render();
+      srToast("Reset to default template");
+    }
   });
 
   function autoProduct(){

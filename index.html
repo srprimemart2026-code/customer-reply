@@ -1,365 +1,150 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>S.R. PRIME MART — Full HD Business Workspace</title>
+<link rel="icon" href="logo.png">
+<title>S.R. PRIME MART – Advanced Customer &amp; Order Ledger</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div class="app-shell">
-  <!-- ============ LEFT SIDEBAR (1920x1080 NAVIGATION & LIVE HUD) ============ -->
-  <aside class="sidebar">
-    <div class="brand">
-      <span class="brand-dot" aria-hidden="true"></span>
-      <div>
-        <strong>S.R. PRIME MART</strong>
-        <span>Full HD Workspace</span>
-      </div>
+<header class="top">
+  <div class="brand">
+    <img class="logo" src="logo.png" alt="S.R. Prime Mart logo" onerror="this.style.display='none'">
+    <div>
+      <h1>S.R. PRIME MART</h1>
+      <div class="sub">Advanced customer, order &amp; profit ledger</div>
     </div>
+  </div>
+  <div class="top-actions">
+    <span class="mode" id="mode"></span>
+    <button type="button" class="s" id="themeToggle">Dark / Light</button>
+    <button type="button" class="s" id="jsonExport">Backup JSON</button>
+    <button type="button" class="s" id="jsonImportBtn">Restore JSON</button>
+    <input type="file" id="jsonImportFile" accept=".json,application/json" hidden>
+  </div>
+</header>
 
-    <nav class="side-nav" id="tabs" aria-label="Workspace sections">
-      <button type="button" data-tab="quote" class="on">
-        <span class="nav-ico">🧾</span>
-        <span>Price Quotation</span>
-      </button>
-      <button type="button" data-tab="reply">
-        <span class="nav-ico">💬</span>
-        <span>Reply Helper</span>
-      </button>
-      <button type="button" data-tab="orders">
-        <span class="nav-ico">📦</span>
-        <span>Order Desk</span>
-      </button>
-    </nav>
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><b id="sC">0</b><span>Total customers</span></div>
+    <div class="stat"><b id="sO">0</b><span>Total orders</span></div>
+    <div class="stat"><b id="sT">৳0</b><span>Total sales</span></div>
+    <div class="stat"><b id="sDc">৳0</b><span>Delivery charge</span></div>
+    <div class="stat"><b id="sD">৳0</b><span>Payment due</span></div>
+    <div class="stat"><b id="sP">0</b><span>Pending deliveries</span></div>
+    <div class="stat"><b id="sPf" class="g">৳0</b><span>Total profit</span></div>
+    <div class="stat"><b id="sLs" class="r">৳0</b><span>Total loss</span></div>
+    <div class="stat"><b id="sNt">৳0</b><span>Net profit / loss</span></div>
+  </div>
 
-    <div class="side-hud">
-      <div class="hud-title">Live Business Pulse</div>
-      <div class="hud-row"><span>Total Orders</span><strong id="hud-orders">0</strong></div>
-      <div class="hud-row"><span>Pending</span><strong id="hud-pending">0</strong></div>
-      <div class="hud-row"><span>Total Sales</span><strong id="hud-sales">Tk 0</strong></div>
+  <div class="sub-strip">
+    <div class="mode" id="stor"></div>
+    <div class="pill-group" id="insightPills">
+      <span class="pill" id="pOwn">Own: 0</span>
+      <span class="pill" id="pRs">Reseller: 0</span>
+      <span class="pill" id="pDel">Delivered: 0</span>
+      <span class="pill" id="pRet">Returned: 0</span>
+      <span class="pill" id="pRate">Success: 0%</span>
     </div>
+  </div>
 
-    <div class="side-footer">
-      <button type="button" id="theme-toggle" class="btn sec w-full">🌓 Switch Theme</button>
-      <div class="side-sub-actions">
-        <button type="button" id="side-backup" class="btn ghost sm">Backup JSON</button>
-        <button type="button" id="side-restore" class="btn ghost sm">Restore</button>
-      </div>
-      <div class="contact-badge">WhatsApp: 01600-445389</div>
-    </div>
-  </aside>
-
-  <!-- ============ MAIN WORKSPACE AREA ============ -->
-  <div class="workspace-main">
-
-    <!-- ============ TAB 1: PRICE QUOTATION (2-COLUMN WIDESCREEN) ============ -->
-    <div id="pane-quote" class="pane">
-      <header class="ws-header">
-        <div>
-          <h1>Price Quotation</h1>
-          <p class="sub">দ্রুত প্রোডাক্ট হিসাব, ডিসকাউন্ট/অ্যাডভান্স, ডেলিভারি চার্জ ও লাইভ কোটেশন প্রিভিউ</p>
+  <div class="layout">
+    <aside>
+      <div class="card">
+        <div class="card-head">
+          <b class="ct" id="ft">Add new order</b>
+          <span class="badge" id="invBadge">AUTO</span>
         </div>
-        <div class="header-actions">
-          <button type="button" id="cpy" class="btn pri">Copy Price Quotation</button>
-          <button type="button" id="send-to-order" class="btn sec">→ Send to Order Desk</button>
-          <button type="button" id="ofb" class="btn sec">Copy Order Form</button>
-          <button type="button" id="fbb" class="btn sec">Copy FB Page Link</button>
-          <button type="button" id="clear-quote" class="btn ghost">Reset</button>
+        <div class="grid">
+          <div><label for="inv">Invoice No.</label><input id="inv" placeholder="SRPM-0001" autocomplete="off"></div>
+          <div><label for="phone">Mobile number</label><input id="phone" list="phones" inputmode="tel" placeholder="01XXXXXXXXX" autocomplete="off"></div>
+          <div class="full"><label for="name">Customer name</label><input id="name" list="names" placeholder="Name" autocomplete="off"></div>
+          <div><label for="date">Date</label><input id="date" type="date"></div>
+          <div><label for="product">Product</label><input id="product" list="products" placeholder="Product name"></div>
+          <div><label for="price">Price (৳)</label><input id="price" type="number" min="0" step="any" inputmode="decimal"></div>
+          <div><label for="cost">Product cost (৳)</label><input id="cost" type="number" min="0" step="any" inputmode="decimal" placeholder="Per piece"></div>
+          <div><label for="qty">Quantity</label><input id="qty" type="number" min="1" value="1" inputmode="numeric"></div>
+          <div>
+            <label for="dc">Delivery charge (−৳)</label>
+            <input id="dc" type="number" min="0" step="any" inputmode="decimal" list="dcs" placeholder="Minus">
+            <datalist id="dcs"><option value="0"><option value="60"><option value="70"><option value="100"><option value="110"><option value="120"><option value="130"><option value="150"></datalist>
+          </div>
+          <div>
+            <label for="dst">Delivery status</label>
+            <select id="dst">
+              <option>Pending</option>
+              <option>Shipped</option>
+              <option>Delivered</option>
+              <option>Returned</option>
+            </select>
+          </div>
+          <div>
+            <label for="pst">Payment status</label>
+            <select id="pst">
+              <option>Due</option>
+              <option>Paid</option>
+              <option>Loss</option>
+            </select>
+          </div>
+          <div class="full">
+            <label class="rs-check">
+              <input type="checkbox" id="rs"> Reseller product
+            </label>
+          </div>
         </div>
-      </header>
+        <div class="hint" id="hint"></div>
+        <div class="calc-box" id="tot"></div>
+        <div class="row">
+          <button class="p" id="save">Save</button>
+          <button id="clear">Clear form</button>
+        </div>
+        <datalist id="phones"></datalist><datalist id="names"></datalist><datalist id="products"></datalist>
+      </div>
+    </aside>
 
-      <div class="quote-grid">
-        <!-- Left Column: Product Table -->
-        <section class="panel fill-panel">
-          <div class="section-top">
-            <h2>Products &amp; Pricing</h2>
-            <span class="hint-inline">Reply Helper-এর প্রোডাক্ট লিস্ট থেকে নাম লিখলে দাম অটো আসবে</span>
+    <main>
+      <div class="card">
+        <div class="bar">
+          <input id="q" placeholder="Search by invoice, name, number or product…">
+          <select id="fd"><option value="">All deliveries</option><option>Pending</option><option>Shipped</option><option>Delivered</option><option>Returned</option></select>
+          <select id="ftp"><option value="">All types</option><option>Own</option><option>Reseller</option></select>
+          <select id="fp"><option value="">All payments</option><option>Due</option><option>Paid</option><option>Loss</option><option>Scam</option></select>
+          <button id="csv" class="p">Download Excel/CSV</button>
+        </div>
+
+        <div class="date-bar">
+          <div class="date-range">
+            <label for="dFrom">From</label>
+            <input id="dFrom" type="date">
+            <label for="dTo">To</label>
+            <input id="dTo" type="date">
+            <button type="button" class="s" id="dReset">Reset dates</button>
           </div>
+          <div class="filtered-summary" id="filterSummary">Showing 0 orders</div>
+        </div>
 
-          <div class="table-wrap scroll-area">
-            <table>
-              <thead>
-                <tr>
-                  <th>Product Name</th>
-                  <th>Price (Tk)</th>
-                  <th>Qty</th>
-                  <th>Total</th>
-                  <th aria-label="Remove"></th>
-                </tr>
-              </thead>
-              <tbody id="rows"></tbody>
-            </table>
-          </div>
+        <div id="csvmsg" class="hint"></div>
+        <div id="cp" class="cp-box">
+          <div class="mode cp-note">Download did not start. Copy this and paste it into Excel or Google Sheets (click cell A1, then Ctrl+V).</div>
+          <textarea id="cpt" rows="7" readonly></textarea>
+          <div class="row cp-actions"><button class="p s" id="cpc">Copy all</button><button class="s" id="cpx">Close</button></div>
+        </div>
 
-          <div class="panel-bottom-bar">
-            <button type="button" id="add" class="btn outline">+ Add Product Row</button>
-          </div>
-        </section>
-
-        <!-- Right Column: Calculation, Delivery & Live Quotation Preview -->
-        <div class="quote-right">
-          <section class="panel">
-            <h2>Delivery &amp; Adjustments</h2>
-            <div class="f">
-              <label for="zs">Delivery Area</label>
-              <select id="zs" aria-label="Delivery area">
-                <option value="0">Inside Dhaka (Tk 70)</option>
-                <option value="1">Dhaka sub areas (Tk 110)</option>
-                <option value="2">Outside Dhaka (Tk 130)</option>
-              </select>
-            </div>
-
-            <div class="calc-extras">
-              <div class="f">
-                <label for="q-disc">Discount (Tk)</label>
-                <input id="q-disc" type="number" min="0" step="any" placeholder="0">
-              </div>
-              <div class="f">
-                <label for="q-adv">Advance Paid (Tk)</label>
-                <input id="q-adv" type="number" min="0" step="any" placeholder="0">
-              </div>
-            </div>
-
-            <div class="sum">
-              <div class="sum-row"><span>Subtotal</span><span id="sub">Tk 0</span></div>
-              <div class="sum-row"><span>Delivery Charge</span><span id="dc">Tk 70</span></div>
-              <div class="sum-row meta" id="disc-row" hidden><span>Discount</span><span id="disc-val">- Tk 0</span></div>
-              <div class="sum-row big"><span>Grand Total</span><span id="tot">Tk 0</span></div>
-              <div class="sum-row meta" id="adv-row" hidden><span>Advance Paid</span><span id="adv-val">- Tk 0</span></div>
-              <div class="sum-row due" id="due-row" hidden><span>Due on Delivery (COD)</span><span id="due-val">Tk 0</span></div>
-              <div class="sum-row meta"><span>Payment Method</span><b id="pay-method-label">Full Cash on Delivery</b></div>
-            </div>
-
-            <dl class="info-list">
-              <div><dt id="dn">Inside Dhaka</dt><dd id="d0">1-2 days</dd></div>
-            </dl>
-          </section>
-
-          <section class="panel preview-panel">
-            <div class="section-top">
-              <h2>Live Message Preview</h2>
-              <span class="hint-inline">কপি করলে ঠিক এই মেসেজটি যাবে</span>
-            </div>
-            <textarea id="quote-live-preview" readonly placeholder="প্রোডাক্ট যোগ করলে এখানে লাইভ কোটেশন মেসেজ দেখা যাবে..."></textarea>
-          </section>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice</th><th>Date</th><th>Name</th><th>Number</th><th>Product</th><th>Type</th><th>Price</th><th>Qty</th><th>Delivery</th><th>Total</th><th>Cost</th><th>Profit / Loss</th><th>Delivery Status</th><th>Payment Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tb"></tbody>
+          </table>
         </div>
       </div>
-    </div>
-
-    <!-- ============ TAB 2: REPLY HELPER (3-COLUMN WIDESCREEN) ============ -->
-    <div id="pane-reply" class="pane" hidden>
-      <header class="ws-header">
-        <div>
-          <h1>Reply Helper</h1>
-          <p class="sub">কাস্টমারের মেসেজ পেস্ট করুন, প্রোডাক্ট সিলেক্ট করুন, এক ক্লিকে রিপ্লাই কপি করুন</p>
-        </div>
-      </header>
-
-      <div class="reply-grid">
-        <!-- Col 1: Customer Message & Best Reply -->
-        <div class="reply-col">
-          <div class="box">
-            <div class="f">
-              <label for="msg">Customer message (Auto-copies best reply on paste)</label>
-              <textarea id="msg" rows="4" placeholder="e.g. vai dam koto? delivery kobe pabo?"></textarea>
-              <div class="chips" id="chips"></div>
-            </div>
-            <div class="f">
-              <label for="prod">Select Product</label>
-              <select id="prod"></select>
-            </div>
-            <div class="row-actions">
-              <button class="ghost" id="clear" type="button">Clear message</button>
-            </div>
-          </div>
-
-          <div class="box best-box fill-panel">
-            <div class="top">
-              <b>Best Suggested Reply</b>
-              <button type="button" id="bestcopy">Copy best reply</button>
-            </div>
-            <textarea id="t_best" aria-label="Best reply" placeholder="Customer message পেস্ট করলে রেডি রিপ্লাই এখানে চলে আসবে।"></textarea>
-          </div>
-        </div>
-
-        <!-- Col 2: All Reply Templates -->
-        <div class="reply-col scroll-col">
-          <div class="section-top">
-            <h2>All Reply Templates</h2>
-            <span class="hint-inline">ম্যাচ হওয়া রিপ্লাইগুলো উপরে থাকবে</span>
-          </div>
-          <div id="list" class="reply-cards-grid"></div>
-        </div>
-
-        <!-- Col 3: Store Settings & Product Database -->
-        <div class="reply-col scroll-col">
-          <div class="box" id="settings">
-            <h2>Store Settings &amp; Catalog</h2>
-            <div class="f">
-              <label for="shop">Shop name</label>
-              <input id="shop" value="S.R. Prime Mart">
-            </div>
-            <div class="f">
-              <label for="charge">Delivery charge text</label>
-              <input id="charge" placeholder="e.g. Dhaka 70 tk, outside Dhaka 130 tk">
-            </div>
-            <div class="f">
-              <label for="review">Review link</label>
-              <input id="review" placeholder="Facebook review post link">
-            </div>
-            <div class="f">
-              <label for="pay">Advance payment details</label>
-              <input id="pay" placeholder="e.g. bKash (Personal): 01XXXXXXXXX">
-            </div>
-            <div class="f">
-              <label for="policy">Return / problem policy (one line)</label>
-              <input id="policy" placeholder="e.g. পণ্যে সমস্যা থাকলে ডেলিভারির সময় জানাবেন">
-            </div>
-            <div class="f">
-              <label for="plist">Products (Name | Price, one per line)</label>
-              <textarea id="plist" rows="8" placeholder="Steel Bracelet | 450&#10;Silver Ring | 300&#10;Wrist Watch | 1200"></textarea>
-              <div class="row-actions">
-                <button class="ghost" id="imp" type="button">Import CSV / Excel</button>
-                <input type="file" id="file" accept=".csv,.tsv,.txt" hidden>
-              </div>
-              <div class="hint">Excel থেকে Name ও Price কপি করে পেস্ট করতে পারেন অথবা CSV ফাইল ইমপোর্ট করতে পারেন।</div>
-            </div>
-
-            <hr class="sep">
-            <div class="f">
-              <label>Workspace Backup &amp; Restore (JSON)</label>
-              <div class="row-actions">
-                <button type="button" class="btn sec sm" id="backup-json">Download Backup</button>
-                <button type="button" class="btn ghost sm" id="restore-json">Restore Backup</button>
-                <input type="file" id="restore-file" accept=".json,application/json" hidden>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============ TAB 3: ORDER DESK (SPLIT ENTRY + FULL TABLE) ============ -->
-    <div id="pane-orders" class="pane" hidden>
-      <header class="ws-header">
-        <div>
-          <h1>Order Desk</h1>
-          <p class="sub">কাস্টমারের অর্ডার সেভ, স্ট্যাটাস ট্র্যাক, পার্সেল স্লিপ প্রিন্ট ও কুরিয়ার CSV এক্সপোর্ট</p>
-        </div>
-        <div class="header-actions">
-          <button type="button" id="export-csv" class="btn pri">Export Full CSV</button>
-          <button type="button" id="export-courier" class="btn sec">Courier CSV (Steadfast/Pathao)</button>
-        </div>
-      </header>
-
-      <div class="stats-grid" id="order-stats">
-        <div class="stat-card"><span>Total Orders</span><strong id="st-count">0</strong></div>
-        <div class="stat-card"><span>Pending Orders</span><strong id="st-pending">0</strong></div>
-        <div class="stat-card"><span>Delivered Orders</span><strong id="st-delivered">0</strong></div>
-        <div class="stat-card"><span>Total Sales</span><strong id="st-sales">Tk 0</strong></div>
-      </div>
-
-      <div class="orders-grid">
-        <!-- Left: New Order Entry -->
-        <section class="panel order-entry-panel">
-          <h2>New Order Entry</h2>
-
-          <div class="smart-box">
-            <label for="smart-paste">⚡ Smart Paste (মেসেজ পেস্ট করলে নাম, ফোন ও ঠিকানা অটো বসবে)</label>
-            <div class="smart-row">
-              <textarea id="smart-paste" rows="2" placeholder="নাম: রাফি আহমেদ&#10;ফোন: 01712345678&#10;ঠিকানা: উত্তরা, ঢাকা"></textarea>
-              <button type="button" id="btn-parse-order" class="btn sec sm">Auto-Fill</button>
-            </div>
-          </div>
-
-          <form id="order-form" class="form-grid">
-            <div class="f">
-              <label for="o-name">Customer Name</label>
-              <input id="o-name" required placeholder="কাস্টমারের নাম">
-            </div>
-            <div class="f">
-              <label for="o-phone">Mobile Number</label>
-              <input id="o-phone" required placeholder="01XXXXXXXXX">
-            </div>
-            <div class="f full">
-              <label for="o-addr">Full Address</label>
-              <input id="o-addr" required placeholder="বাসা/রোড, থানা, জেলা">
-            </div>
-            <div class="f full">
-              <label for="o-prod">Product &amp; Qty</label>
-              <input id="o-prod" required placeholder="e.g. Steel Bracelet × 1">
-            </div>
-            <div class="f">
-              <label for="o-total">COD Amount (Tk)</label>
-              <input id="o-total" type="number" min="0" placeholder="0">
-            </div>
-            <div class="f">
-              <label for="o-status">Status</label>
-              <select id="o-status">
-                <option value="Pending">Pending</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Shipped">Shipped</option>
-                <option value="Delivered">Delivered</option>
-                <option value="Returned">Returned</option>
-              </select>
-            </div>
-            <div class="f full">
-              <label for="o-note">Delivery Note (Optional)</label>
-              <input id="o-note" placeholder="e.g. কল দিয়ে ডেলিভারি করবেন">
-            </div>
-            <div class="f full row-actions">
-              <button type="submit" class="btn pri">Save Order</button>
-              <button type="button" id="clear-orders" class="btn ghost">Clear All</button>
-            </div>
-          </form>
-        </section>
-
-        <!-- Right: Saved Orders Table -->
-        <section class="panel fill-panel">
-          <div class="section-top">
-            <h2>Saved Orders (<span id="order-count">0</span>)</h2>
-            <div class="filter-bar">
-              <input type="search" id="order-search" placeholder="নাম, ফোন বা ঠিকানা খুঁজুন...">
-              <select id="order-filter-status" aria-label="Filter by status">
-                <option value="ALL">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Shipped">Shipped</option>
-                <option value="Delivered">Delivered</option>
-                <option value="Returned">Returned</option>
-              </select>
-            </div>
-          </div>
-          <div class="table-wrap scroll-area">
-            <table>
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Phone</th>
-                  <th>Address</th>
-                  <th>Product</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="order-rows"></tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </div>
-
+    </main>
   </div>
 </div>
-
-<!-- Printable Parcel Slip / Invoice Area -->
-<div id="print-slip" class="print-only" aria-hidden="true"></div>
-
-<!-- Toast Notification -->
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="script.js"></script>
 </body>

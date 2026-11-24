@@ -5,7 +5,31 @@ function srToast(msg){
   el.textContent = msg;
   el.classList.add("show");
   clearTimeout(srToast._t);
-  srToast._t = setTimeout(function(){ el.classList.remove("show"); }, 2000);
+  srToast._t = setTimeout(function(){ el.classList.remove("show"); }, 2200);
+}
+
+function srCopyText(text, onSuccess, onFail){
+  function fallback(){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try{ ok = document.execCommand("copy"); }catch(e){ ok = false; }
+    document.body.removeChild(ta);
+    if(ok){ if(onSuccess) onSuccess(); }
+    else if(onFail){ onFail(); }
+  }
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(function(){
+      if(onSuccess) onSuccess();
+    }, fallback);
+  }else{
+    fallback();
+  }
 }
 
 (function(){
@@ -222,23 +246,7 @@ function srGetSyncedProducts(){
       srToast(msg);
       setTimeout(function(){ btn.textContent = origLabel; }, 1800);
     }
-    function fallback(){
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      var ok = false;
-      try{ ok = document.execCommand("copy"); }catch(e){}
-      document.body.removeChild(ta);
-      flash(ok ? "Copied ✓" : "Copy failed");
-    }
-    if(navigator.clipboard && window.isSecureContext){
-      navigator.clipboard.writeText(text).then(function(){ flash("Copied ✓"); }, fallback);
-    }else{
-      fallback();
-    }
+    srCopyText(text, function(){ flash("Copied ✓"); }, function(){ flash("Copy failed"); });
   }
 
   $("cpy").onclick = function(){
@@ -261,8 +269,11 @@ function srGetSyncedProducts(){
       return String(it.n).trim() + " × " + qty(it.q);
     }).join(", ");
     var amountToCollect = t.adv > 0 ? t.due : t.grand;
+    var noteParts = [];
+    if(t.adv > 0) noteParts.push("Adv Paid: Tk " + t.adv);
+    if(t.disc > 0) noteParts.push("Disc: Tk " + t.disc);
     if(window.srFillOrderFromQuote){
-      window.srFillOrderFromQuote(prodSummary, amountToCollect);
+      window.srFillOrderFromQuote(prodSummary, amountToCollect, noteParts.join(" | "));
     }
     srSwitchTab("orders");
     srToast("Sent to Order Desk");
@@ -344,7 +355,7 @@ function srGetSyncedProducts(){
   ];
 
   var $ = function(id){ return document.getElementById(id); };
-  var S = { shop: "S.R. Prime Mart", charge: "", plist: "" };
+  var S = { shop: "S.R. Prime Mart", charge: "", pay: "", plist: "" };
 
   try{
     var s = JSON.parse(localStorage.getItem("rh_settings") || "null");
@@ -353,6 +364,7 @@ function srGetSyncedProducts(){
 
   if(S.review === undefined) S.review = "https://www.facebook.com/share/p/1UYhXZzukX/";
   if(S.policy === undefined) S.policy = "পণ্যে কোনো সমস্যা থাকলে ডেলিভারির সময়ই আমাদের জানাবেন, আমরা সমাধানের চেষ্টা করব 🙏";
+  if(S.pay === undefined) S.pay = "";
 
   function save(){
     try{ localStorage.setItem("rh_settings", JSON.stringify(S)); }catch(e){}
@@ -427,7 +439,10 @@ function srGetSyncedProducts(){
 
   function copyById(id, btn){
     var el = $("t_" + id);
-    if(!el) return;
+    if(!el || !el.value.trim()){
+      srToast("Nothing to copy");
+      return;
+    }
     var orig = btn.textContent;
     function ok(){
       btn.textContent = "Copied";
@@ -435,15 +450,7 @@ function srGetSyncedProducts(){
       srToast("Reply copied");
       setTimeout(function(){ btn.textContent = orig; btn.classList.remove("done"); }, 1400);
     }
-    if(navigator.clipboard && window.isSecureContext){
-      navigator.clipboard.writeText(el.value).then(ok, fb);
-    }else{
-      fb();
-    }
-    function fb(){
-      el.select();
-      try{ document.execCommand("copy"); ok(); }catch(e){}
-    }
+    srCopyText(el.value, ok, function(){ srToast("Copy failed"); });
   }
 
   $("list").addEventListener("click", function(e){
@@ -470,14 +477,12 @@ function srGetSyncedProducts(){
       onMsg();
       var b = $("t_best"), bc = $("bestcopy");
       if(!b.value) return;
-      if(navigator.clipboard && window.isSecureContext){
-        navigator.clipboard.writeText(b.value).then(function(){
-          bc.textContent = "Reply copied";
-          bc.classList.add("done");
-          srToast("Best reply auto-copied");
-          setTimeout(function(){ bc.textContent = "Copy best reply"; bc.classList.remove("done"); }, 2200);
-        }, function(){});
-      }
+      srCopyText(b.value, function(){
+        bc.textContent = "Reply copied";
+        bc.classList.add("done");
+        srToast("Best reply auto-copied");
+        setTimeout(function(){ bc.textContent = "Copy best reply"; bc.classList.remove("done"); }, 2200);
+      });
     }, 0);
   });
 
@@ -515,7 +520,8 @@ function srGetSyncedProducts(){
       exportedAt: new Date().toISOString(),
       rh_settings: JSON.parse(localStorage.getItem("rh_settings") || "null"),
       sr_quote_items: JSON.parse(localStorage.getItem("sr_quote_items") || "null"),
-      sr_orders_list: JSON.parse(localStorage.getItem("sr_orders_list") || "null")
+      sr_orders_list: JSON.parse(localStorage.getItem("sr_orders_list") || "null"),
+      sr_order_seq: Number(localStorage.getItem("sr_order_seq") || "1001")
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
@@ -545,6 +551,7 @@ function srGetSyncedProducts(){
         if(data.rh_settings) localStorage.setItem("rh_settings", JSON.stringify(data.rh_settings));
         if(data.sr_quote_items) localStorage.setItem("sr_quote_items", JSON.stringify(data.sr_quote_items));
         if(data.sr_orders_list) localStorage.setItem("sr_orders_list", JSON.stringify(data.sr_orders_list));
+        if(data.sr_order_seq) localStorage.setItem("sr_order_seq", String(data.sr_order_seq));
         srToast("Backup restored! Reloading...");
         setTimeout(function(){ location.reload(); }, 600);
       }catch(err){
@@ -571,22 +578,38 @@ function srGetSyncedProducts(){
   var $ = function(id){ return document.getElementById(id); };
   var STATUSES = ["Pending", "Confirmed", "Shipped", "Delivered", "Returned"];
   var orders = [];
+  var seq = 1001;
+
+  try{ seq = Math.max(1001, parseInt(localStorage.getItem("sr_order_seq") || "1001", 10) || 1001); }catch(e){}
 
   try{
     var saved = JSON.parse(localStorage.getItem("sr_orders_list") || "null");
     if(Array.isArray(saved)){
       orders = saved.map(function(o, idx){
+        var numPart = parseInt(String(o.id || "").replace(/\D+/g, ""), 10);
+        if(!isNaN(numPart) && numPart >= seq) seq = numPart + 1;
         return Object.assign({
-          id: o.id || ("SR-" + (1001 + idx)),
+          id: o.id || ("SR-" + (seq + idx)),
           status: o.status || "Pending",
-          note: o.note || ""
+          note: o.note || "",
+          createdAt: o.createdAt || new Date().toISOString()
         }, o);
       });
     }
   }catch(e){}
 
+  function nextOrderId(){
+    var id = "SR-" + seq;
+    seq += 1;
+    try{ localStorage.setItem("sr_order_seq", String(seq)); }catch(e){}
+    return id;
+  }
+
   function saveOrders(){
-    try{ localStorage.setItem("sr_orders_list", JSON.stringify(orders)); }catch(e){}
+    try{
+      localStorage.setItem("sr_orders_list", JSON.stringify(orders));
+      localStorage.setItem("sr_order_seq", String(seq));
+    }catch(e){}
   }
 
   function esc(s){
@@ -595,9 +618,17 @@ function srGetSyncedProducts(){
     });
   }
 
-  window.srFillOrderFromQuote = function(prodText, amount){
+  function findOrderById(id){
+    for(var i = 0; i < orders.length; i++){
+      if(String(orders[i].id) === String(id)) return orders[i];
+    }
+    return null;
+  }
+
+  window.srFillOrderFromQuote = function(prodText, amount, noteText){
     $("o-prod").value = prodText;
     $("o-total").value = String(Math.round(amount || 0));
+    if(noteText) $("o-note").value = noteText;
     $("o-name").focus();
   };
 
@@ -609,9 +640,12 @@ function srGetSyncedProducts(){
     }
     var phoneMatch = raw.match(/(?:\+?88)?01[3-9]\d{8}|01\d{2}[-\s]?\d{6}/);
     var phone = phoneMatch ? phoneMatch[0].replace(/[-\s]/g, "") : "";
+    if(phone.indexOf("880") === 0) phone = phone.slice(2);
+    if(phone.indexOf("+880") === 0) phone = phone.slice(3);
 
     var name = "";
     var addr = "";
+    var prod = "";
     var lines = raw.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
 
     lines.forEach(function(line){
@@ -619,14 +653,16 @@ function srGetSyncedProducts(){
         name = line.replace(/^(নাম|name)\s*[:\-]\s*/i, "").trim();
       }else if(/^(ঠিকানা|address|addr|location)\s*[:\-]/i.test(line)){
         addr = line.replace(/^(ঠিকানা|address|addr|location)\s*[:\-]\s*/i, "").trim();
+      }else if(/^(প্রোডাক্ট|product|item|পণ্য)\s*[:\-]/i.test(line)){
+        prod = line.replace(/^(প্রোডাক্ট|product|item|পণ্য)\s*[:\-]\s*/i, "").trim();
       }
     });
 
     if(!name || !addr){
       lines.forEach(function(line){
         if(phoneMatch && line.indexOf(phoneMatch[0]) > -1) return;
-        if(/^(ফোন|মোবাইল|নম্বর|phone|mobile|number)\s*[:\-]/i.test(line)) return;
-        if(!name && line.length <= 40 && !/ঢাকা|চট্টগ্রাম|সিলেট|রাজশাহী|খুলনা|রংপুর|বরিশাল|ময়মনসিংহ|রোড|বাড়ি|বাসা|থানা|জেলা|road|house|sector|block/i.test(line)){
+        if(/^(ফোন|মোবাইল|নম্বর|phone|mobile|number|প্রোডাক্ট|product|item)\s*[:\-]/i.test(line)) return;
+        if(!name && line.length <= 45 && !/ঢাকা|চট্টগ্রাম|সিলেট|রাজশাহী|খুলনা|রংপুর|বরিশাল|ময়মনসিংহ|রোড|বাড়ি|বাসা|থানা|জেলা|road|house|sector|block/i.test(line)){
           name = line.replace(/^[১-৯1-9][.)\s-]+/, "").trim();
         }else if(!addr){
           addr = line.replace(/^[১-৯1-9][.)\s-]+/, "").trim();
@@ -637,6 +673,7 @@ function srGetSyncedProducts(){
     if(name) $("o-name").value = name;
     if(phone) $("o-phone").value = phone;
     if(addr) $("o-addr").value = addr;
+    if(prod && !$("o-prod").value) $("o-prod").value = prod;
     srToast("Auto-filled order fields");
   });
 
@@ -654,7 +691,6 @@ function srGetSyncedProducts(){
     $("st-delivered").textContent = String(delivered);
     $("st-sales").textContent = salesFormatted;
 
-    /* Sync Sidebar Live HUD */
     if($("hud-orders")) $("hud-orders").textContent = String(orders.length);
     if($("hud-pending")) $("hud-pending").textContent = String(pending);
     if($("hud-sales")) $("hud-sales").textContent = salesFormatted;
@@ -663,11 +699,10 @@ function srGetSyncedProducts(){
   function getFilteredOrders(){
     var q = ($("order-search").value || "").trim().toLowerCase();
     var st = $("order-filter-status").value;
-    return orders.map(function(o, idx){ return { o: o, idx: idx }; }).filter(function(entry){
-      var o = entry.o;
+    return orders.filter(function(o){
       if(st !== "ALL" && o.status !== st) return false;
       if(!q) return true;
-      var hay = [o.id, o.name, o.phone, o.addr, o.prod, o.status].join(" ").toLowerCase();
+      var hay = [o.id, o.name, o.phone, o.addr, o.prod, o.status, o.note].join(" ").toLowerCase();
       return hay.indexOf(q) > -1;
     });
   }
@@ -682,21 +717,21 @@ function srGetSyncedProducts(){
       return;
     }
 
-    $("order-rows").innerHTML = list.map(function(entry){
-      var o = entry.o, i = entry.idx;
+    $("order-rows").innerHTML = list.map(function(o){
+      var oid = esc(o.id);
       var opts = STATUSES.map(function(s){
         return '<option value="' + s + '"' + (o.status === s ? " selected" : "") + '>' + s + '</option>';
       }).join("");
       return '<tr>' +
-        '<td><strong>' + esc(o.name) + '</strong><div style="font-size:0.75rem;color:var(--mute)">' + esc(o.id) + '</div></td>' +
+        '<td><strong>' + esc(o.name) + '</strong><div style="font-size:0.75rem;color:var(--mute)">' + oid + '</div></td>' +
         '<td>' + esc(o.phone) + '</td>' +
         '<td>' + esc(o.addr) + (o.note ? '<div style="font-size:0.75rem;color:var(--mute)">Note: ' + esc(o.note) + '</div>' : '') + '</td>' +
         '<td>' + esc(o.prod) + '</td>' +
         '<td><strong>Tk ' + esc(Number(o.total || 0).toLocaleString("en-US")) + '</strong></td>' +
-        '<td><select class="status-sel" data-ost="' + i + '" aria-label="Order status">' + opts + '</select></td>' +
+        '<td><select class="status-sel" data-ost="' + oid + '" aria-label="Order status">' + opts + '</select></td>' +
         '<td><div class="act-btns">' +
-          '<button type="button" class="btn sec sm" data-oprint="' + i + '">Slip</button>' +
-          '<button type="button" class="x sm" data-odel="' + i + '" aria-label="Delete order">✕</button>' +
+          '<button type="button" class="btn sec sm" data-oprint="' + oid + '">Slip</button>' +
+          '<button type="button" class="x sm" data-odel="' + oid + '" aria-label="Delete order">✕</button>' +
         '</div></td>' +
       '</tr>';
     }).join("");
@@ -704,16 +739,16 @@ function srGetSyncedProducts(){
 
   $("order-form").addEventListener("submit", function(e){
     e.preventDefault();
-    var nextNum = 1001 + orders.length;
     orders.unshift({
-      id: "SR-" + nextNum,
+      id: nextOrderId(),
       name: $("o-name").value.trim(),
       phone: $("o-phone").value.trim(),
       addr: $("o-addr").value.trim(),
       prod: $("o-prod").value.trim(),
       total: $("o-total").value.trim() || "0",
       status: $("o-status").value || "Pending",
-      note: $("o-note").value.trim()
+      note: $("o-note").value.trim(),
+      createdAt: new Date().toISOString()
     });
     saveOrders();
     renderOrders();
@@ -726,27 +761,31 @@ function srGetSyncedProducts(){
   $("order-filter-status").addEventListener("change", renderOrders);
 
   $("order-rows").addEventListener("change", function(e){
-    var idx = e.target.getAttribute("data-ost");
-    if(idx !== null){
-      orders[+idx].status = e.target.value;
-      saveOrders();
-      updateStats();
-      srToast("Status: " + e.target.value);
+    var oid = e.target.getAttribute("data-ost");
+    if(oid){
+      var ord = findOrderById(oid);
+      if(ord){
+        ord.status = e.target.value;
+        saveOrders();
+        updateStats();
+        srToast("Status: " + e.target.value);
+      }
     }
   });
 
   $("order-rows").addEventListener("click", function(e){
-    var delIdx = e.target.getAttribute("data-odel");
-    if(delIdx !== null){
-      orders.splice(+delIdx, 1);
+    var delId = e.target.getAttribute("data-odel");
+    if(delId){
+      orders = orders.filter(function(o){ return String(o.id) !== String(delId); });
       saveOrders();
       renderOrders();
       srToast("Order removed");
       return;
     }
-    var prIdx = e.target.getAttribute("data-oprint");
-    if(prIdx !== null){
-      printOrderSlip(orders[+prIdx]);
+    var prId = e.target.getAttribute("data-oprint");
+    if(prId){
+      var ord = findOrderById(prId);
+      if(ord) printOrderSlip(ord);
     }
   });
 

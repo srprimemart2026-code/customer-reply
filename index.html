@@ -38,7 +38,7 @@
       <div class="hud-title">Live Business Pulse</div>
       <div class="hud-row"><span>Total Orders</span><strong id="hud-orders">0</strong></div>
       <div class="hud-row"><span>Pending</span><strong id="hud-pending">0</strong></div>
-      <div class="hud-row"><span>Total Sales</span><strong id="hud-sales">Tk 0</strong></div>
+      <div class="hud-row"><span>Active Sales</span><strong id="hud-sales">Tk 0</strong></div>
     </div>
 
     <div class="side-footer">
@@ -258,7 +258,7 @@
         <div class="stat-card"><span>Total Orders</span><strong id="st-count">0</strong></div>
         <div class="stat-card"><span>Pending Orders</span><strong id="st-pending">0</strong></div>
         <div class="stat-card"><span>Delivered Orders</span><strong id="st-delivered">0</strong></div>
-        <div class="stat-card"><span>Total Sales</span><strong id="st-sales">Tk 0</strong></div>
+        <div class="stat-card"><span>Active Sales</span><strong id="st-sales">Tk 0</strong></div>
       </div>
 
       <div class="orders-grid">
@@ -281,7 +281,7 @@
             </div>
             <div class="f">
               <label for="o-phone">Mobile Number</label>
-              <input id="o-phone" required placeholder="01XXXXXXXXX">
+              <input id="o-phone" type="tel" required placeholder="01XXXXXXXXX">
             </div>
             <div class="f full">
               <label for="o-addr">Full Address</label>
@@ -293,7 +293,7 @@
             </div>
             <div class="f">
               <label for="o-total">COD Amount (Tk)</label>
-              <input id="o-total" type="number" min="0" placeholder="0">
+              <input id="o-total" type="number" min="0" step="any" placeholder="0">
             </div>
             <div class="f">
               <label for="o-status">Status</label>

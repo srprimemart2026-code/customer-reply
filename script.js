@@ -1,4 +1,4 @@
-/* ===== GLOBAL TOAST & THEME ===== */
+/* ===== GLOBAL TOAST, CLIPBOARD & THEME ===== */
 function srToast(msg){
   var el = document.getElementById("toast");
   if(!el) return;
@@ -30,6 +30,12 @@ function srCopyText(text, onSuccess, onFail){
   }else{
     fallback();
   }
+}
+
+function srNormalizePhone(p){
+  var clean = String(p || "").replace(/[^\d]/g, "");
+  if(clean.indexOf("8801") === 0) clean = clean.slice(2);
+  return clean;
 }
 
 (function(){
@@ -69,6 +75,98 @@ function srSwitchTab(tabName){
       srSwitchTab(b.getAttribute("data-tab"));
     });
   });
+})();
+
+/* ===== WEBSITE CLOUD SYNC (GOOGLE SHEETS / WEB APP) ===== */
+var srCloud = (function(){
+  function getUrl(){
+    try{ return (localStorage.getItem("sr_cloud_url") || "").trim(); }catch(e){ return ""; }
+  }
+  function setUrl(u){
+    try{ localStorage.setItem("sr_cloud_url", String(u || "").trim()); }catch(e){}
+    updateIndicator();
+  }
+  function updateIndicator(customText){
+    var el = document.getElementById("cloud-status-text");
+    if(!el) return;
+    if(customText){ el.textContent = customText; return; }
+    var url = getUrl();
+    el.textContent = url ? "🟢 Cloud Connected" : "⚪ Local Storage Mode";
+  }
+  function buildPayload(){
+    return {
+      updatedAt: new Date().toISOString(),
+      rh_settings: JSON.parse(localStorage.getItem("rh_settings") || "null"),
+      sr_quote_items: JSON.parse(localStorage.getItem("sr_quote_items") || "null"),
+      srpm_orders_v1: JSON.parse(localStorage.getItem("srpm_orders_v1") || "null"),
+      sr_customers_list: JSON.parse(localStorage.getItem("sr_customers_list") || "null")
+    };
+  }
+  function push(silent){
+    var url = getUrl();
+    if(!url){
+      if(!silent) srToast("Settings থেকে Cloud URL যুক্ত করুন");
+      return;
+    }
+    updateIndicator("🟡 Syncing to Cloud...");
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "save", payload: buildPayload() })
+    })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if(data && data.ok){
+        updateIndicator("🟢 Cloud Synced");
+        if(!silent) srToast("সব ডেটা ওয়েবসাইট ক্লাউডে সেভ হয়েছে ✓");
+      }else{
+        updateIndicator("🔴 Sync Error");
+        if(!silent) srToast("Cloud sync failed");
+      }
+    })
+    .catch(function(){
+      updateIndicator("🔴 Offline / Sync Error");
+      if(!silent) srToast("Cloud connection failed");
+    });
+  }
+  function pull(silent){
+    var url = getUrl();
+    if(!url){
+      if(!silent) srToast("Settings থেকে Cloud URL যুক্ত করুন");
+      return;
+    }
+    updateIndicator("🟡 Loading Cloud Data...");
+    fetch(url + (url.indexOf("?") > -1 ? "&" : "?") + "action=load")
+    .then(function(res){ return res.json(); })
+    .then(function(res){
+      var data = res && res.payload ? res.payload : res;
+      if(data && (data.srpm_orders_v1 || data.sr_customers_list || data.rh_settings)){
+        if(data.rh_settings) localStorage.setItem("rh_settings", JSON.stringify(data.rh_settings));
+        if(data.sr_quote_items) localStorage.setItem("sr_quote_items", JSON.stringify(data.sr_quote_items));
+        if(data.srpm_orders_v1) localStorage.setItem("srpm_orders_v1", JSON.stringify(data.srpm_orders_v1));
+        if(data.sr_customers_list) localStorage.setItem("sr_customers_list", JSON.stringify(data.sr_customers_list));
+        updateIndicator("🟢 Cloud Synced");
+        srToast("Cloud থেকে ডেটা লোড হয়েছে! Reloading...");
+        setTimeout(function(){ location.reload(); }, 600);
+      }else{
+        updateIndicator("🟢 Cloud Ready (Empty)");
+        if(!silent) srToast("Cloud-এ কোনো আগের ডেটা পাওয়া যায়নি");
+      }
+    })
+    .catch(function(){
+      updateIndicator("🔴 Load Error");
+      if(!silent) srToast("Cloud থেকে ডেটা আনা যায়নি");
+    });
+  }
+  return { getUrl: getUrl, setUrl: setUrl, updateIndicator: updateIndicator, push: push, pull: pull };
+})();
+
+(function(){
+  srCloud.updateIndicator();
+  var pushBtn = document.getElementById("btn-cloud-push");
+  var pullBtn = document.getElementById("btn-cloud-pull");
+  if(pushBtn) pushBtn.addEventListener("click", function(){ srCloud.push(false); });
+  if(pullBtn) pullBtn.addEventListener("click", function(){ srCloud.pull(false); });
 })();
 
 /* ===== SHARED PRODUCT PARSER ===== */
@@ -251,32 +349,23 @@ function srGetSyncedProducts(){
 
   $("cpy").onclick = function(){
     var t = qtext();
-    if(!t){
-      srToast("Add a product first");
-      return;
-    }
+    if(!t){ srToast("Add a product first"); return; }
     cpTxt(t, this, "Copy Price Quotation");
   };
 
   $("send-to-order").onclick = function(){
     var validItems = items.filter(function(it){ return String(it.n || "").trim(); });
-    if(!validItems.length){
-      srToast("Add a product first");
-      return;
-    }
+    if(!validItems.length){ srToast("Add a product first"); return; }
     var t = getTotals();
     var prodSummary = validItems.map(function(it){
-      return String(it.n).trim() + " × " + qty(it.q);
+      return String(it.n).trim() + (qty(it.q) > 1 ? " ×" + qty(it.q) : "");
     }).join(", ");
     var amountToCollect = t.adv > 0 ? t.due : t.grand;
-    var noteParts = [];
-    if(t.adv > 0) noteParts.push("Adv Paid: Tk " + t.adv);
-    if(t.disc > 0) noteParts.push("Disc: Tk " + t.disc);
     if(window.srFillOrderFromQuote){
-      window.srFillOrderFromQuote(prodSummary, amountToCollect, noteParts.join(" | "));
+      window.srFillOrderFromQuote(prodSummary, amountToCollect, t.dc);
     }
     srSwitchTab("orders");
-    srToast("Sent to Order Desk");
+    srToast("Sent to Order Ledger");
   };
 
   $("ofb").onclick = function(){
@@ -336,7 +425,7 @@ function srGetSyncedProducts(){
   window.addEventListener("sr:products-updated", rows);
 })();
 
-/* ===== TAB 2: REPLY HELPER + BACKUP/RESTORE ===== */
+/* ===== TAB 2: REPLY HELPER + BACKUP/RESTORE + CLOUD SETTINGS ===== */
 (function(){
   var T = [
     { id: "greet", t: "Greeting", k: /salam|সালাম|hello|হ্যালো|হাই|\bhi\b/i, x: "আসসালামু আলাইকুম ভাইয়া! {shop}-এ স্বাগতম 😊 কোন প্রোডাক্টটা লাগবে বলুন।" },
@@ -439,10 +528,7 @@ function srGetSyncedProducts(){
 
   function copyById(id, btn){
     var el = $("t_" + id);
-    if(!el || !el.value.trim()){
-      srToast("Nothing to copy");
-      return;
-    }
+    if(!el || !el.value.trim()){ srToast("Nothing to copy"); return; }
     var orig = btn.textContent;
     function ok(){
       btn.textContent = "Copied";
@@ -514,14 +600,23 @@ function srGetSyncedProducts(){
     this.value = "";
   });
 
-  /* JSON Backup & Restore (Works from both Sidebar & Settings) */
+  $("cloud-url").value = srCloud.getUrl();
+  $("save-cloud-url").addEventListener("click", function(){
+    srCloud.setUrl($("cloud-url").value);
+    srCloud.push(false);
+  });
+  $("pull-cloud-settings").addEventListener("click", function(){
+    srCloud.setUrl($("cloud-url").value);
+    srCloud.pull(false);
+  });
+
   function doBackup(){
     var payload = {
       exportedAt: new Date().toISOString(),
       rh_settings: JSON.parse(localStorage.getItem("rh_settings") || "null"),
       sr_quote_items: JSON.parse(localStorage.getItem("sr_quote_items") || "null"),
-      sr_orders_list: JSON.parse(localStorage.getItem("sr_orders_list") || "null"),
-      sr_order_seq: Number(localStorage.getItem("sr_order_seq") || "1001")
+      srpm_orders_v1: JSON.parse(localStorage.getItem("srpm_orders_v1") || "null"),
+      sr_customers_list: JSON.parse(localStorage.getItem("sr_customers_list") || "null")
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
@@ -550,8 +645,8 @@ function srGetSyncedProducts(){
         var data = JSON.parse(String(r.result));
         if(data.rh_settings) localStorage.setItem("rh_settings", JSON.stringify(data.rh_settings));
         if(data.sr_quote_items) localStorage.setItem("sr_quote_items", JSON.stringify(data.sr_quote_items));
-        if(data.sr_orders_list) localStorage.setItem("sr_orders_list", JSON.stringify(data.sr_orders_list));
-        if(data.sr_order_seq) localStorage.setItem("sr_order_seq", String(data.sr_order_seq));
+        if(data.srpm_orders_v1) localStorage.setItem("srpm_orders_v1", JSON.stringify(data.srpm_orders_v1));
+        if(data.sr_customers_list) localStorage.setItem("sr_customers_list", JSON.stringify(data.sr_customers_list));
         srToast("Backup restored! Reloading...");
         setTimeout(function(){ location.reload(); }, 600);
       }catch(err){
@@ -573,288 +668,526 @@ function srGetSyncedProducts(){
   render();
 })();
 
-/* ===== TAB 3: ORDER DESK ===== */
+/* ===== TAB 3: CUSTOMER & ORDER LEDGER ===== */
 (function(){
-  var $ = function(id){ return document.getElementById(id); };
-  var STATUSES = ["Pending", "Confirmed", "Shipped", "Delivered", "Returned"];
-  var orders = [];
-  var seq = 1001;
+  var $ = function(i){ return document.getElementById(i); };
+  var invTouched = false, orders = [], editId = null, ref = null, LS = "srpm_orders_v1";
+  var LG = {
+    "পেন্ডিং": "Pending",
+    "পাঠানো হয়েছে": "Shipped",
+    "ডেলিভারি হয়েছে": "Delivered",
+    "ফেরত": "Returned",
+    "বাকি": "Due",
+    "আংশিক পরিশোধ": "Partial",
+    "পরিশোধিত": "Paid"
+  };
 
-  try{ seq = Math.max(1001, parseInt(localStorage.getItem("sr_order_seq") || "1001", 10) || 1001); }catch(e){}
+  function tk(n){ return "৳" + Math.round(n || 0).toLocaleString("en-US"); }
+  function esc(s){ var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+  function today(){ var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function total(o){ return (+o.price || 0) * (+o.qty || 0) - (+o.dc || 0); }
+  function cls(v, t){ return t == "d" ? (v == "Delivered" ? "g" : v == "Returned" ? "r" : "o") : (v == "Paid" ? "g" : v == "Due" || v == "Loss" || v == "Scam" ? "r" : "o"); }
+  function isL(o){ return o.pst == "Loss" || o.pst == "Scam"; }
 
-  try{
-    var saved = JSON.parse(localStorage.getItem("sr_orders_list") || "null");
-    if(Array.isArray(saved)){
-      orders = saved.map(function(o, idx){
-        var numPart = parseInt(String(o.id || "").replace(/\D+/g, ""), 10);
-        if(!isNaN(numPart) && numPart >= seq) seq = numPart + 1;
-        return Object.assign({
-          id: o.id || ("SR-" + (seq + idx)),
-          status: o.status || "Pending",
-          note: o.note || "",
-          createdAt: o.createdAt || new Date().toISOString()
-        }, o);
-      });
-    }
-  }catch(e){}
-
-  function nextOrderId(){
-    var id = "SR-" + seq;
-    seq += 1;
-    try{ localStorage.setItem("sr_order_seq", String(seq)); }catch(e){}
-    return id;
+  function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS) || "[]"); }catch(e){ return []; } }
+  var idb = null;
+  function idbOpen(){ return new Promise(function(res, rej){ var r = indexedDB.open("srpm_db", 1); r.onupgradeneeded = function(){ r.result.createObjectStore("orders", { keyPath: "id" }); }; r.onsuccess = function(){ res(r.result); }; r.onerror = function(){ rej(r.error); }; }); }
+  function idbAll(){ return new Promise(function(res, rej){ var q = idb.transaction("orders").objectStore("orders").getAll(); q.onsuccess = function(){ res(q.result); }; q.onerror = function(){ rej(q.error); }; }); }
+  function idbPut(o){ return new Promise(function(res, rej){ var t = idb.transaction("orders", "readwrite"); t.objectStore("orders").put(o); t.oncomplete = res; t.onerror = function(){ rej(t.error); }; }); }
+  function idbDel(id){ return new Promise(function(res, rej){ var t = idb.transaction("orders", "readwrite"); t.objectStore("orders").delete(id); t.oncomplete = res; t.onerror = function(){ rej(t.error); }; }); }
+  function lsSave(){
+    try{ localStorage.setItem(LS, JSON.stringify(orders)); }catch(e){}
+    window.dispatchEvent(new Event("sr:orders-updated"));
+    if(srCloud.getUrl()) srCloud.push(true);
   }
 
-  function saveOrders(){
+  async function init(){
+    $("date").value = today();
     try{
-      localStorage.setItem("sr_orders_list", JSON.stringify(orders));
-      localStorage.setItem("sr_order_seq", String(seq));
+      idb = await idbOpen();
+      orders = await idbAll();
+      if(!orders.length){
+        var old = lsLoad();
+        if(old.length){
+          orders = old;
+          for(var i = 0; i < old.length; i++) await idbPut(old[i]);
+        }
+      }
+      try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+    }catch(e){
+      idb = null;
+      orders = lsLoad();
+    }
+    lsSave();
+    render();
+    try{
+      if(window.claude && claude.use){
+        var db = await claude.use("db"), user = await claude.use("user");
+        if(db && user){
+          var id = await user.id();
+          ref = db.collection("data/users/" + id);
+          $("mode").textContent = "Saved online";
+          ref.onSnapshot(function(s){
+            var a = s.docs.map(function(d){ var x = d.data(); x.id = d.id; return x; });
+            if(!a.length && orders.length){
+              orders.forEach(function(o){ ref.doc(o.id).set(o).catch(function(){}); });
+              return;
+            }
+            orders = a;
+            lsSave();
+            render();
+          }, function(){ ref = null; $("mode").textContent = "Saved in this browser"; });
+          return;
+        }
+      }
     }catch(e){}
+    $("mode").textContent = "Saved in this browser (take regular CSV backups)";
+  }
+
+  function persist(o){
+    if(ref){
+      ref.doc(o.id).set(o).catch(function(){ alert("Could not save, please try again"); });
+    }else{
+      var i = orders.findIndex(function(x){ return x.id == o.id; });
+      if(i >= 0) orders[i] = o; else orders.push(o);
+      if(idb) idbPut(o).catch(function(){ alert("Could not save, please try again"); });
+      lsSave();
+      render();
+    }
+  }
+
+  function remove(id){
+    if(ref){
+      ref.doc(id).delete().catch(function(){});
+    }else{
+      orders = orders.filter(function(x){ return x.id != id; });
+      if(idb) idbDel(id).catch(function(){});
+      lsSave();
+      render();
+    }
+  }
+
+  function pl(o){ var a = total(o) - (+o.cost || 0) * (+o.qty || 0); if(o.pst == "Scam") return -Math.abs(a); if(o.pst == "Loss") return -(+o.dc || 0); if(o.pst == "Paid") return a; return null; }
+  function costCell(o){ return o.cost == null ? "—" : tk((+o.cost || 0) * (+o.qty || 0)); }
+  function plCell(o){ var p = pl(o); if(p == null) return "—"; if(o.dst == "Returned" && !isL(o)) return "<span class='mode'>returned</span>"; return "<b class='" + (p >= 0 ? "g" : "r") + "'>" + (p >= 0 ? "+" : "−") + tk(Math.abs(p)) + "</b>"; }
+  function nextInv(){ var m = 0; orders.forEach(function(o){ var x = /(\d+)\s*$/.exec(o.inv || ""); if(x && +x[1] > m) m = +x[1]; }); return "SRPM-" + String(m + 1).padStart(4, "0"); }
+  function fmt(b){ return b < 1048576 ? (b / 1024).toFixed(1) + " KB" : (b / 1048576).toFixed(2) + " MB"; }
+
+  function stor(){
+    var el = $("stor"); if(!el) return;
+    var n = orders.length, sz = 0; try{ sz = new Blob([JSON.stringify(orders)]).size; }catch(e){}
+    if(ref){ el.textContent = "Storage: " + n + " orders · data size " + fmt(sz) + " · online storage limit is not shown by the platform"; }
+    else{
+      var base = "Storage: " + n + " orders · data " + fmt(sz);
+      el.textContent = base;
+      if(idb && navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(function(e){ el.textContent = base + " · browser storage used " + fmt(e.usage || 0) + " of " + fmt(e.quota || 0) + " available"; }).catch(function(){});
+      else{ var u = 0; try{ u = ((localStorage.getItem(LS) || "").length + LS.length) * 2; }catch(e){} el.textContent = base + " · about " + fmt(u) + " of the 5 MB browser limit"; }
+    }
+  }
+
+  function render(){
+    if(!editId && !invTouched && $("inv")) $("inv").value = nextInv();
+    orders.forEach(function(o){ o.dst = LG[o.dst] || o.dst; o.pst = LG[o.pst] || o.pst; });
+    var q = $("q").value.trim().toLowerCase(), fd = $("fd").value, fp = $("fp").value, ftp = $("ftp").value;
+    var list = orders.slice().sort(function(a, b){ return (b.date || "").localeCompare(a.date || "") || (b.ts || 0) - (a.ts || 0); });
+    var f = list.filter(function(o){
+      if(fd && o.dst != fd) return false;
+      if(fp && o.pst != fp) return false;
+      if(ftp == "Reseller" && !o.rs) return false;
+      if(ftp == "Own" && o.rs) return false;
+      if(!q) return true;
+      return [o.inv, o.name, o.phone, o.product].join(" ").toLowerCase().indexOf(q) > -1;
+    });
+
+    $("tb").innerHTML = f.length ? f.map(function(o){
+      return "<tr><td>" + esc(o.inv || "—") + "</td><td>" + esc(o.date) + "</td><td>" + esc(o.name) + "</td><td>" + esc(o.phone) + "</td><td>" + esc(o.product) + "</td><td>" + (o.rs ? "<span class='tag o'>Reseller</span>" : "Own") + "</td><td>" + tk(o.price) + "</td><td>" + esc(o.qty) + "</td><td>" + tk(o.dc) + "</td><td><b>" + (o.pst == "Loss" ? "—" : tk(total(o))) + "</b></td><td>" + (o.pst == "Loss" ? "—" : costCell(o)) + "</td><td>" + plCell(o) + "</td><td><span class='tag " + cls(o.dst, "d") + "'>" + esc(o.dst) + "</span></td><td><span class='tag " + cls(o.pst, "p") + "'>" + esc(o.pst) + "</span></td><td style='white-space:nowrap'><button class='s' data-e='" + esc(o.id) + "'>Edit</button> <button class='s d' data-x='" + esc(o.id) + "'>Delete</button></td></tr>";
+    }).join("") : "<tr><td colspan='15' class='empty'>No orders yet</td></tr>";
+
+    var ph = {}, sum = 0, due = 0, pend = 0, pf = 0, ls = 0, dcs = 0;
+    orders.forEach(function(o){
+      ph[o.phone || o.name] = 1;
+      var t = total(o);
+      if(o.dst != "Returned" || isL(o)) dcs += (+o.dc || 0);
+      var pp = pl(o);
+      if((o.dst != "Returned" || isL(o)) && pp != null){ if(isL(o)) ls -= pp; else pf += pp; }
+      if(o.dst != "Returned"){ if(!isL(o)) sum += t; if(o.pst != "Paid" && !isL(o)) due += t; }
+      if(o.dst == "Pending" || o.dst == "Shipped") pend++;
+    });
+
+    $("sC").textContent = Object.keys(ph).length;
+    $("sO").textContent = orders.length;
+    $("sT").textContent = tk(sum);
+    $("sD").textContent = tk(due);
+    $("sP").textContent = pend;
+    $("sDc").textContent = tk(dcs);
+    $("sPf").textContent = tk(pf);
+    $("sLs").textContent = tk(ls);
+    var nt = pf - ls;
+    $("sNt").textContent = (nt < 0 ? "−" : "") + tk(Math.abs(nt));
+    $("sNt").className = nt < 0 ? "r" : "g";
+
+    if($("hud-orders")) $("hud-orders").textContent = String(orders.length);
+    if($("hud-pending")) $("hud-pending").textContent = String(pend);
+    if($("hud-sales")){
+      $("hud-sales").textContent = (nt < 0 ? "−" : "") + tk(Math.abs(nt));
+      $("hud-sales").style.color = nt < 0 ? "var(--er)" : "var(--ok)";
+    }
+
+    function dl(id, key){ var s = {}; orders.forEach(function(o){ if(o[key]) s[o[key]] = 1; }); $(id).innerHTML = Object.keys(s).map(function(v){ return "<option value=\"" + esc(v).replace(/"/g, "&quot;") + "\">"; }).join(""); }
+    stor(); dl("phones", "phone"); dl("names", "name"); dl("products", "product");
+  }
+
+  function syncPst(){ var r = $("rs").checked, v = $("pst").value; if(r && v == "Loss") v = "Scam"; if(!r && v == "Scam") v = "Loss"; if(["Due", "Paid", "Loss", "Scam"].indexOf(v) < 0) v = "Due"; $("pst").innerHTML = "<option>Due</option><option>Paid</option><option>" + (r ? "Scam" : "Loss") + "</option>"; $("pst").value = v; }
+  function calcTot(){ var q = +$("qty").value || 0, dc = +$("dc").value || 0, pr = (+$("price").value || 0) * q, c = (+$("cost").value || 0) * q, ps = $("pst").value, x = ""; if(ps == "Scam"){ var sc = pr - c - dc; x = "Scam loss: " + tk(Math.abs(sc)) + "  (Price " + tk(pr) + " − Cost " + tk(c) + " − Delivery " + tk(dc) + ")"; } else if(ps == "Loss"){ x = dc ? "Loss: " + tk(dc) + " (delivery charge only)" : ""; } else if(pr){ x = "Price " + tk(pr) + " − Cost " + tk(c) + " − Delivery " + tk(dc); if(ps == "Paid"){ var p = pr - c - dc; x += " = " + (p >= 0 ? "Profit: " : "Loss: ") + tk(Math.abs(p)); } else { x += " · Profit counts after status is Paid"; } } $("tot").textContent = x; }
+
+  function autofill(by){
+    var v = $(by).value.trim(); if(!v) return;
+    var m = orders.slice().sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); }).find(function(o){ return o[by] == v; });
+    if(!m || editId) return;
+    var other = by == "phone" ? "name" : "phone";
+    if(!$(other).value) $(other).value = m[other] || "";
+    var cnt = orders.filter(function(o){ return o[by] == v; }).length;
+    var due = orders.filter(function(o){ return o[by] == v && o.pst != "Paid" && !isL(o) && o.dst != "Returned"; }).reduce(function(s, o){ return s + total(o); }, 0);
+    $("hint").textContent = "Returning customer · Previous orders: " + cnt + (due ? " · Due: " + tk(due) : "");
+  }
+
+  function clearForm(){
+    editId = null; ["phone", "name", "product", "price", "cost", "dc"].forEach(function(i){ $(i).value = ""; });
+    $("qty").value = 1; $("date").value = today(); $("dst").selectedIndex = 0; $("pst").selectedIndex = 0; $("rs").checked = false; syncPst();
+    invTouched = false; $("inv").value = nextInv(); $("hint").textContent = ""; $("ft").textContent = "Add new order"; $("save").textContent = "Save"; calcTot();
+  }
+
+  window.srFillOrderFromQuote = function(prodText, amount, dcVal){
+    clearForm();
+    $("product").value = prodText;
+    if(dcVal) $("dc").value = dcVal;
+    $("qty").value = 1;
+    $("price").value = Math.max(0, (Number(amount) || 0) + (Number(dcVal) || 0));
+    calcTot();
+    $("phone").focus();
+  };
+
+  window.srStartOrderForCustomer = function(name, phone){
+    clearForm();
+    $("name").value = name || "";
+    $("phone").value = phone || "";
+    autofill("phone");
+    srSwitchTab("orders");
+    $("product").focus();
+  };
+
+  $("phone").addEventListener("input", function(){ autofill("phone"); });
+  $("phone").addEventListener("change", function(){ autofill("phone"); });
+  $("name").addEventListener("change", function(){ autofill("name"); });
+  $("price").addEventListener("input", calcTot); $("qty").addEventListener("input", calcTot); $("dc").addEventListener("input", calcTot); $("cost").addEventListener("input", calcTot); $("pst").addEventListener("change", calcTot); $("rs").addEventListener("change", function(){ syncPst(); calcTot(); }); $("pst").addEventListener("change", calcTot);
+  ["q", "fd", "fp", "ftp"].forEach(function(i){ $(i).addEventListener("input", render); });
+  $("clear").onclick = clearForm; $("inv").addEventListener("input", function(){ invTouched = true; });
+
+  $("save").onclick = function(){
+    var name = $("name").value.trim(), phone = $("phone").value.trim();
+    if(!name && !phone){ alert("Please enter a name or mobile number"); return; }
+    var old = editId ? orders.find(function(x){ return x.id == editId; }) : null;
+    var o = {
+      inv: $("inv").value.trim() || nextInv(),
+      id: editId || ("o" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+      ts: old ? old.ts : Date.now(),
+      name: name,
+      phone: phone,
+      date: $("date").value || today(),
+      product: $("product").value.trim(),
+      price: +$("price").value || 0,
+      dc: +$("dc").value || 0,
+      cost: $("cost").value === "" ? null : (+$("cost").value || 0),
+      rs: $("rs").checked,
+      qty: +$("qty").value || 1,
+      dst: $("dst").value,
+      pst: $("pst").value
+    };
+    if(window.srUpsertCustomerFromOrder) window.srUpsertCustomerFromOrder(o);
+    persist(o); clearForm();
+    $("hint").textContent = "Saved ✓"; srToast("Order saved ✓");
+    setTimeout(function(){ if($("hint").textContent == "Saved ✓") $("hint").textContent = ""; }, 2500);
+  };
+
+  $("tb").addEventListener("click", function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    if(b.dataset.x){ if(confirm("Delete this order?")) remove(b.dataset.x); return; }
+    if(b.dataset.e){
+      var o = orders.find(function(x){ return x.id == b.dataset.e; }); if(!o) return;
+      editId = o.id; $("inv").value = o.inv || ""; $("phone").value = o.phone || ""; $("name").value = o.name || ""; $("date").value = o.date || today(); $("product").value = o.product || ""; $("price").value = o.price || ""; $("dc").value = o.dc || ""; $("cost").value = o.cost == null ? "" : o.cost; $("rs").checked = !!o.rs; $("qty").value = o.qty || 1; $("dst").value = o.dst; syncPst(); $("pst").value = o.pst;
+      $("ft").textContent = "Editing order"; $("save").textContent = "Update"; $("hint").textContent = ""; calcTot();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+
+  $("csv").onclick = async function(){
+    var h = ["Invoice", "Date", "Name", "Number", "Product", "Type", "Price", "Quantity", "Delivery Charge", "Total", "Cost", "Profit/Loss", "Delivery", "Payment"];
+    var rows = [h].concat(orders.slice().sort(function(a, b){ return (a.date || "").localeCompare(b.date || ""); }).map(function(o){ return [o.inv, o.date, o.name, o.phone, o.product, o.rs ? "Reseller" : "Own", o.price, o.qty, o.dc || 0, total(o), o.cost == null ? "" : (+o.cost || 0) * (+o.qty || 0), pl(o) == null ? "" : pl(o), o.dst, o.pst]; }));
+    var csv = "\ufeff" + rows.map(function(r){ return r.map(function(c){ return '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+    var tsv = rows.map(function(r){ return r.map(function(c){ return String(c == null ? "" : c).replace(/[\t\r\n]+/g, " "); }).join("\t"); }).join("\n");
+    var m = $("csvmsg"); m.textContent = ""; $("cp").style.display = "none";
+    var d = null; try{ d = window.claude && claude.use ? await claude.use("downloads") : null; }catch(e){}
+    if(d){ try{ await d.save({ filename: "sr-prime-mart-orders.csv", data: csv }); m.textContent = "File saved ✓"; return; }catch(e){ if(e && e.code == "declined"){ m.textContent = "Download cancelled"; return; } } }
+    try{ var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "sr-prime-mart-orders.csv"; a.click(); }catch(e){}
+    $("cpt").value = tsv; $("cp").style.display = "block";
+  };
+  $("cpc").onclick = function(){ var t = $("cpt"); t.select(); var ok = false; try{ ok = document.execCommand("copy"); }catch(e){} $("csvmsg").textContent = ok ? "Copied ✓ Now paste into Excel / Google Sheets" : "Press Ctrl+C to copy the selected text"; };
+  $("cpx").onclick = function(){ $("cp").style.display = "none"; };
+
+  clearForm(); init();
+})();
+
+/* ===== TAB 4: CUSTOMER DATA (DIRECTORY & CRM) ===== */
+(function(){
+  var $ = function(i){ return document.getElementById(i); };
+  var customers = [];
+
+  try{
+    var saved = JSON.parse(localStorage.getItem("sr_customers_list") || "null");
+    if(Array.isArray(saved)) customers = saved;
+  }catch(e){}
+
+  function saveCustomers(){
+    try{ localStorage.setItem("sr_customers_list", JSON.stringify(customers)); }catch(e){}
+    if(srCloud.getUrl()) srCloud.push(true);
   }
 
   function esc(s){
-    return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
-    });
+    var d = document.createElement("div");
+    d.textContent = s == null ? "" : String(s);
+    return d.innerHTML;
   }
 
-  function findOrderById(id){
-    for(var i = 0; i < orders.length; i++){
-      if(String(orders[i].id) === String(id)) return orders[i];
-    }
-    return null;
+  function tk(n){ return "৳" + Math.round(n || 0).toLocaleString("en-US"); }
+  function totalOrderAmt(o){ return (+o.price || 0) * (+o.qty || 0) - (+o.dc || 0); }
+  function isLossOrder(o){ return o.pst == "Loss" || o.pst == "Scam"; }
+
+  function getOrders(){
+    try{ return JSON.parse(localStorage.getItem("srpm_orders_v1") || "[]") || []; }catch(e){ return []; }
   }
 
-  window.srFillOrderFromQuote = function(prodText, amount, noteText){
-    $("o-prod").value = prodText;
-    $("o-total").value = String(Math.round(amount || 0));
-    if(noteText) $("o-note").value = noteText;
-    $("o-name").focus();
-  };
-
-  $("btn-parse-order").addEventListener("click", function(){
-    var raw = $("smart-paste").value.trim();
-    if(!raw){
-      srToast("Paste customer message first");
-      return;
-    }
-    var phoneMatch = raw.match(/(?:\+?88)?01[3-9]\d{8}|01\d{2}[-\s]?\d{6}/);
-    var phone = phoneMatch ? phoneMatch[0].replace(/[-\s]/g, "") : "";
-    if(phone.indexOf("880") === 0) phone = phone.slice(2);
-    if(phone.indexOf("+880") === 0) phone = phone.slice(3);
-
-    var name = "";
-    var addr = "";
-    var prod = "";
-    var lines = raw.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
-
-    lines.forEach(function(line){
-      if(/^(নাম|name)\s*[:\-]/i.test(line)){
-        name = line.replace(/^(নাম|name)\s*[:\-]\s*/i, "").trim();
-      }else if(/^(ঠিকানা|address|addr|location)\s*[:\-]/i.test(line)){
-        addr = line.replace(/^(ঠিকানা|address|addr|location)\s*[:\-]\s*/i, "").trim();
-      }else if(/^(প্রোডাক্ট|product|item|পণ্য)\s*[:\-]/i.test(line)){
-        prod = line.replace(/^(প্রোডাক্ট|product|item|পণ্য)\s*[:\-]\s*/i, "").trim();
+  function computeMetrics(){
+    var all = getOrders();
+    var map = {};
+    all.forEach(function(o){
+      var key = srNormalizePhone(o.phone) || String(o.name || "").trim().toLowerCase();
+      if(!key) return;
+      if(!map[key]) map[key] = { count: 0, spent: 0 };
+      map[key].count += 1;
+      if(o.dst != "Returned" && !isLossOrder(o)){
+        map[key].spent += totalOrderAmt(o);
       }
     });
+    return map;
+  }
 
-    if(!name || !addr){
-      lines.forEach(function(line){
-        if(phoneMatch && line.indexOf(phoneMatch[0]) > -1) return;
-        if(/^(ফোন|মোবাইল|নম্বর|phone|mobile|number|প্রোডাক্ট|product|item)\s*[:\-]/i.test(line)) return;
-        if(!name && line.length <= 45 && !/ঢাকা|চট্টগ্রাম|সিলেট|রাজশাহী|খুলনা|রংপুর|বরিশাল|ময়মনসিংহ|রোড|বাড়ি|বাসা|থানা|জেলা|road|house|sector|block/i.test(line)){
-          name = line.replace(/^[১-৯1-9][.)\s-]+/, "").trim();
-        }else if(!addr){
-          addr = line.replace(/^[১-৯1-9][.)\s-]+/, "").trim();
-        }
+  function syncFromOrders(silent){
+    var all = getOrders();
+    var added = 0;
+    all.forEach(function(o){
+      var ph = srNormalizePhone(o.phone);
+      var key = ph || String(o.name || "").trim().toLowerCase();
+      if(!key) return;
+      var existing = customers.find(function(c){
+        var cKey = srNormalizePhone(c.phone) || String(c.name || "").trim().toLowerCase();
+        return cKey === key;
+      });
+      if(!existing){
+        customers.unshift({
+          name: o.name || "Customer",
+          phone: ph || o.phone || "",
+          addr: o.addr || "",
+          tag: "Regular",
+          source: "Facebook Page",
+          note: ""
+        });
+        added++;
+      }else if(!existing.name && o.name){
+        existing.name = o.name;
+      }
+    });
+    saveCustomers();
+    renderCustomers();
+    if(!silent) srToast(added > 0 ? added + " new customers synced" : "Customer data up to date");
+  }
+
+  window.srUpsertCustomerFromOrder = function(o){
+    var ph = srNormalizePhone(o.phone);
+    var key = ph || String(o.name || "").trim().toLowerCase();
+    if(!key) return;
+    var existing = customers.find(function(c){
+      var cKey = srNormalizePhone(c.phone) || String(c.name || "").trim().toLowerCase();
+      return cKey === key;
+    });
+    if(existing){
+      existing.name = o.name || existing.name;
+      if(ph) existing.phone = ph;
+    }else{
+      customers.unshift({
+        name: o.name || "Customer",
+        phone: ph || o.phone || "",
+        addr: "",
+        tag: "Regular",
+        source: "Facebook Page",
+        note: ""
       });
     }
+    try{ localStorage.setItem("sr_customers_list", JSON.stringify(customers)); }catch(e){}
+    renderCustomers();
+  };
 
-    if(name) $("o-name").value = name;
-    if(phone) $("o-phone").value = phone;
-    if(addr) $("o-addr").value = addr;
-    if(prod && !$("o-prod").value) $("o-prod").value = prod;
-    srToast("Auto-filled order fields");
-  });
-
-  function updateStats(){
-    var totalSales = 0, pending = 0, delivered = 0;
-    orders.forEach(function(o){
-      var amt = parseFloat(o.total) || 0;
-      if(o.status !== "Returned") totalSales += amt;
-      if(o.status === "Pending") pending++;
-      if(o.status === "Delivered") delivered++;
+  function updateStats(metrics){
+    var total = customers.length, repeat = 0, vip = 0, ltv = 0;
+    customers.forEach(function(c){
+      var key = srNormalizePhone(c.phone) || String(c.name || "").trim().toLowerCase();
+      var m = metrics[key] || { count: 0, spent: 0 };
+      if(m.count >= 2) repeat++;
+      if(c.tag === "VIP") vip++;
+      ltv += m.spent;
     });
-    var salesFormatted = "Tk " + totalSales.toLocaleString("en-US");
-    $("st-count").textContent = String(orders.length);
-    $("st-pending").textContent = String(pending);
-    $("st-delivered").textContent = String(delivered);
-    $("st-sales").textContent = salesFormatted;
-
-    if($("hud-orders")) $("hud-orders").textContent = String(orders.length);
-    if($("hud-pending")) $("hud-pending").textContent = String(pending);
-    if($("hud-sales")) $("hud-sales").textContent = salesFormatted;
+    $("cst-total").textContent = String(total);
+    $("cst-repeat").textContent = String(repeat);
+    $("cst-vip").textContent = String(vip);
+    $("cst-ltv").textContent = tk(ltv);
+    if($("hud-customers")) $("hud-customers").textContent = String(total);
   }
 
-  function getFilteredOrders(){
-    var q = ($("order-search").value || "").trim().toLowerCase();
-    var st = $("order-filter-status").value;
-    return orders.filter(function(o){
-      if(st !== "ALL" && o.status !== st) return false;
+  function renderCustomers(){
+    var metrics = computeMetrics();
+    updateStats(metrics);
+
+    var q = ($("cust-search").value || "").trim().toLowerCase();
+    var tag = $("cust-filter-tag").value;
+
+    var list = customers.filter(function(c){
+      if(tag && c.tag !== tag) return false;
       if(!q) return true;
-      var hay = [o.id, o.name, o.phone, o.addr, o.prod, o.status, o.note].join(" ").toLowerCase();
-      return hay.indexOf(q) > -1;
+      return [c.name, c.phone, c.addr, c.tag, c.source, c.note].join(" ").toLowerCase().indexOf(q) > -1;
     });
-  }
-
-  function renderOrders(){
-    updateStats();
-    var list = getFilteredOrders();
-    $("order-count").textContent = String(list.length);
 
     if(!list.length){
-      $("order-rows").innerHTML = '<tr><td colspan="7" style="color:var(--mute);padding:14px 6px">কোনো অর্ডার পাওয়া যায়নি।</td></tr>';
+      $("cust-rows").innerHTML = "<tr><td colspan='6' class='empty'>No customers yet</td></tr>";
       return;
     }
 
-    $("order-rows").innerHTML = list.map(function(o){
-      var oid = esc(o.id);
-      var opts = STATUSES.map(function(s){
-        return '<option value="' + s + '"' + (o.status === s ? " selected" : "") + '>' + s + '</option>';
-      }).join("");
-      return '<tr>' +
-        '<td><strong>' + esc(o.name) + '</strong><div style="font-size:0.75rem;color:var(--mute)">' + oid + '</div></td>' +
-        '<td>' + esc(o.phone) + '</td>' +
-        '<td>' + esc(o.addr) + (o.note ? '<div style="font-size:0.75rem;color:var(--mute)">Note: ' + esc(o.note) + '</div>' : '') + '</td>' +
-        '<td>' + esc(o.prod) + '</td>' +
-        '<td><strong>Tk ' + esc(Number(o.total || 0).toLocaleString("en-US")) + '</strong></td>' +
-        '<td><select class="status-sel" data-ost="' + oid + '" aria-label="Order status">' + opts + '</select></td>' +
-        '<td><div class="act-btns">' +
-          '<button type="button" class="btn sec sm" data-oprint="' + oid + '">Slip</button>' +
-          '<button type="button" class="x sm" data-odel="' + oid + '" aria-label="Delete order">✕</button>' +
-        '</div></td>' +
-      '</tr>';
+    $("cust-rows").innerHTML = list.map(function(c){
+      var ph = srNormalizePhone(c.phone) || c.phone || "";
+      var key = ph || String(c.name || "").trim().toLowerCase();
+      var m = metrics[key] || { count: 0, spent: 0 };
+      var waNum = ph.indexOf("01") === 0 ? "88" + ph : ph;
+      var tCls = c.tag === "VIP" ? "g" : (c.tag === "Risk" ? "r" : "o");
+      return "<tr>" +
+        "<td><b>" + esc(c.name) + "</b>" + (c.note ? "<div class='mode'>" + esc(c.note) + "</div>" : "") + "</td>" +
+        "<td>" + esc(ph || "—") + "<div class='mode'>" + esc(c.source || "Facebook Page") + "</div></td>" +
+        "<td>" + esc(c.addr || "—") + "</td>" +
+        "<td><b>" + m.count + "</b> orders <div class='mode'>" + tk(m.spent) + "</div></td>" +
+        "<td><span class='tag " + tCls + "'>" + esc(c.tag || "Regular") + "</span></td>" +
+        "<td style='white-space:nowrap'>" +
+          (waNum ? "<a class='btn s' href='https://wa.me/" + esc(waNum) + "' target='_blank' rel='noopener'>WA</a> " : "") +
+          "<button class='s' data-corder='" + esc(key) + "'>+Order</button> " +
+          "<button class='s' data-cedit='" + esc(key) + "'>Edit</button> " +
+          "<button class='s d' data-cdel='" + esc(key) + "'>Delete</button>" +
+        "</td>" +
+      "</tr>";
     }).join("");
   }
 
-  $("order-form").addEventListener("submit", function(e){
+  $("customer-form").addEventListener("submit", function(e){
     e.preventDefault();
-    orders.unshift({
-      id: nextOrderId(),
-      name: $("o-name").value.trim(),
-      phone: $("o-phone").value.trim(),
-      addr: $("o-addr").value.trim(),
-      prod: $("o-prod").value.trim(),
-      total: $("o-total").value.trim() || "0",
-      status: $("o-status").value || "Pending",
-      note: $("o-note").value.trim(),
-      createdAt: new Date().toISOString()
+    var editKey = $("c-edit-phone").value;
+    var ph = srNormalizePhone($("c-phone").value.trim()) || $("c-phone").value.trim();
+    var name = $("c-name").value.trim();
+    var newKey = ph || name.toLowerCase();
+    var rec = {
+      name: name,
+      phone: ph,
+      addr: $("c-addr").value.trim(),
+      tag: $("c-tag").value || "Regular",
+      source: $("c-source").value || "Facebook Page",
+      note: $("c-note").value.trim()
+    };
+    var idx = customers.findIndex(function(c){
+      var k = srNormalizePhone(c.phone) || String(c.name || "").trim().toLowerCase();
+      return k === (editKey || newKey);
     });
-    saveOrders();
-    renderOrders();
-    this.reset();
-    $("smart-paste").value = "";
-    srToast("Order saved");
+    if(idx >= 0){
+      customers[idx] = Object.assign(customers[idx], rec);
+      srToast("Customer updated");
+    }else{
+      customers.unshift(rec);
+      srToast("Customer saved");
+    }
+    saveCustomers();
+    renderCustomers();
+    resetCustForm();
   });
 
-  $("order-search").addEventListener("input", renderOrders);
-  $("order-filter-status").addEventListener("change", renderOrders);
+  function resetCustForm(){
+    $("customer-form").reset();
+    $("c-edit-phone").value = "";
+    $("cust-form-title").textContent = "Add / update customer";
+    $("c-save-btn").textContent = "Save Customer";
+    $("c-cancel-edit").hidden = true;
+  }
 
-  $("order-rows").addEventListener("change", function(e){
-    var oid = e.target.getAttribute("data-ost");
-    if(oid){
-      var ord = findOrderById(oid);
-      if(ord){
-        ord.status = e.target.value;
-        saveOrders();
-        updateStats();
-        srToast("Status: " + e.target.value);
+  $("c-cancel-edit").addEventListener("click", resetCustForm);
+  $("cust-search").addEventListener("input", renderCustomers);
+  $("cust-filter-tag").addEventListener("change", renderCustomers);
+  $("sync-cust-from-orders").addEventListener("click", function(){ syncFromOrders(false); });
+
+  $("cust-rows").addEventListener("click", function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    var key = b.dataset.corder || b.dataset.cedit || b.dataset.cdel;
+    if(!key) return;
+    var c = customers.find(function(item){
+      var k = srNormalizePhone(item.phone) || String(item.name || "").trim().toLowerCase();
+      return k === key;
+    });
+    if(!c) return;
+    if(b.dataset.corder && window.srStartOrderForCustomer){
+      window.srStartOrderForCustomer(c.name, c.phone);
+    }else if(b.dataset.cedit){
+      $("c-edit-phone").value = key;
+      $("c-name").value = c.name || "";
+      $("c-phone").value = c.phone || "";
+      $("c-addr").value = c.addr || "";
+      $("c-tag").value = c.tag || "Regular";
+      $("c-source").value = c.source || "Facebook Page";
+      $("c-note").value = c.note || "";
+      $("cust-form-title").textContent = "Editing: " + (c.name || "");
+      $("c-save-btn").textContent = "Update";
+      $("c-cancel-edit").hidden = false;
+    }else if(b.dataset.cdel){
+      if(confirm("Delete this customer?")){
+        customers = customers.filter(function(item){
+          var k = srNormalizePhone(item.phone) || String(item.name || "").trim().toLowerCase();
+          return k !== key;
+        });
+        saveCustomers();
+        renderCustomers();
+        srToast("Customer removed");
       }
     }
   });
 
-  $("order-rows").addEventListener("click", function(e){
-    var delId = e.target.getAttribute("data-odel");
-    if(delId){
-      orders = orders.filter(function(o){ return String(o.id) !== String(delId); });
-      saveOrders();
-      renderOrders();
-      srToast("Order removed");
-      return;
-    }
-    var prId = e.target.getAttribute("data-oprint");
-    if(prId){
-      var ord = findOrderById(prId);
-      if(ord) printOrderSlip(ord);
-    }
-  });
-
-  function printOrderSlip(o){
-    var shopName = "S.R. PRIME MART";
-    try{
-      var s = JSON.parse(localStorage.getItem("rh_settings") || "null");
-      if(s && s.shop) shopName = s.shop;
-    }catch(e){}
-
-    var slip = $("print-slip");
-    slip.innerHTML =
-      '<div class="slip-box">' +
-        '<div class="slip-head"><div><strong>' + esc(shopName) + '</strong><div style="font-size:12px">Contact: 01600-445389</div></div>' +
-        '<div style="text-align:right"><strong>' + esc(o.id) + '</strong><div style="font-size:12px">' + esc(o.status) + '</div></div></div>' +
-        '<div class="slip-row"><strong>Customer:</strong> ' + esc(o.name) + '</div>' +
-        '<div class="slip-row"><strong>Phone:</strong> ' + esc(o.phone) + '</div>' +
-        '<div class="slip-row"><strong>Address:</strong> ' + esc(o.addr) + '</div>' +
-        '<div class="slip-row"><strong>Items:</strong> ' + esc(o.prod) + '</div>' +
-        (o.note ? '<div class="slip-row"><strong>Note:</strong> ' + esc(o.note) + '</div>' : '') +
-        '<div class="slip-cod">COD Amount: Tk ' + esc(Number(o.total || 0).toLocaleString("en-US")) + '</div>' +
-      '</div>';
-    window.print();
-  }
-
-  $("clear-orders").addEventListener("click", function(){
-    if(!orders.length) return;
-    orders = [];
-    saveOrders();
-    renderOrders();
-    srToast("All orders cleared");
-  });
-
-  function downloadCSV(rowsArr, filename){
-    var csvRows = rowsArr.map(function(cols){
-      return cols.map(function(v){
-        return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-      }).join(",");
+  $("export-customers-csv").addEventListener("click", function(){
+    if(!customers.length){ srToast("No customers to export"); return; }
+    var metrics = computeMetrics();
+    var rows = [["Name", "Phone", "Address", "Tag", "Source", "Orders", "Sales (৳)", "Note"]];
+    customers.forEach(function(c){
+      var ph = srNormalizePhone(c.phone) || c.phone || "";
+      var key = ph || String(c.name || "").trim().toLowerCase();
+      var m = metrics[key] || { count: 0, spent: 0 };
+      rows.push([c.name, ph, c.addr, c.tag, c.source, m.count, m.spent, c.note || ""]);
     });
-    var blob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
-    var url = URL.createObjectURL(blob);
+    var csv = "\ufeff" + rows.map(function(r){ return r.map(function(v){ return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
     var a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    a.download = "sr-prime-mart-customers.csv";
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  $("export-csv").addEventListener("click", function(){
-    if(!orders.length){ srToast("No orders to export"); return; }
-    var rowsArr = [["Order ID", "Customer Name", "Mobile", "Address", "Product", "Total (Tk)", "Status", "Note"]];
-    orders.forEach(function(o){
-      rowsArr.push([o.id, o.name, o.phone, o.addr, o.prod, o.total, o.status, o.note || ""]);
-    });
-    downloadCSV(rowsArr, "sr-prime-mart-orders.csv");
-    srToast("CSV exported");
+    srToast("Customers CSV exported");
   });
 
-  $("export-courier").addEventListener("click", function(){
-    if(!orders.length){ srToast("No orders to export"); return; }
-    var rowsArr = [["Invoice", "Name", "Address", "Phone", "Amount", "Note"]];
-    orders.forEach(function(o){
-      rowsArr.push([o.id, o.name, o.addr, o.phone, o.total || 0, o.note || o.prod]);
-    });
-    downloadCSV(rowsArr, "courier-bulk-upload.csv");
-    srToast("Courier CSV exported");
-  });
-
-  renderOrders();
+  window.addEventListener("sr:orders-updated", function(){ syncFromOrders(true); });
+  syncFromOrders(true);
 })();
